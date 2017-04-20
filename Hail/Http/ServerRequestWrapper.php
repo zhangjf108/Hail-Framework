@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Hail\Http;
 
+use Hail\Util\Arrays;
 use Psr\Http\Message\{
 	ServerRequestInterface, StreamInterface, UploadedFileInterface
 };
@@ -58,7 +59,7 @@ class ServerRequestWrapper
 	public function __call($name, $arguments)
 	{
 		if (strpos($name, 'with') === 0) {
-			throw new \BadMethodCallException('Wrapper not support use this method: ' . $name);
+			throw new \BadMethodCallException('ServerRequestWrapper not support use this method: ' . $name);
 		}
 
 		return $this->serverRequest->$name(...$arguments);
@@ -112,7 +113,7 @@ class ServerRequestWrapper
 	 */
 	public function file(string $name): ?UploadedFileInterface
 	{
-		return $this->serverRequest->getUploadedFiles()[$name] ?? null;
+		return Arrays::get($this->serverRequest->getUploadedFiles(), $name);
 	}
 
 	/**

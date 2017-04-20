@@ -1,4 +1,5 @@
 <?php
+
 namespace Hail\Http;
 
 use Hail\Util\{
@@ -24,21 +25,22 @@ class Input implements \ArrayAccess
 	/** @var ArrayDot */
 	protected $del = [];
 
-	protected $method = 'GET';
-	protected $queryParams = [];
-	protected $parsedBody = [];
+	/** @var array */
+	protected $queryParams;
+
+	/** @var array */
+	protected $parsedBody;
 
 	public function __construct(ServerRequestInterface $request)
 	{
 		$this->items = Arrays::dot();
 		$this->del = Arrays::dot();
 
-		$this->method = $request->getMethod();
-		$this->queryParams = $request->getQueryParams();
 		$this->parsedBody = $request->getParsedBody();
+		$this->queryParams = $request->getQueryParams();
 	}
 
-	public function setAll(array $array)
+	public function setAll(array $array): void
 	{
 		$this->setMultiple($array);
 
@@ -49,7 +51,7 @@ class Input implements \ArrayAccess
 	 * @param string $key
 	 * @param mixed  $value
 	 */
-	public function set($key, $value = null)
+	public function set($key, $value = null): void
 	{
 		if (!$this->all) {
 			unset($this->del[$key]);
@@ -57,7 +59,7 @@ class Input implements \ArrayAccess
 		$this->items[$key] = $value;
 	}
 
-	public function delete($key)
+	public function delete($key): void
 	{
 		if (!$this->all) {
 			$this->del[$key] = true;
@@ -68,7 +70,7 @@ class Input implements \ArrayAccess
 	/**
 	 * @param string|null $key
 	 *
-	 * @return array|UploadedFile|mixed|null|string
+	 * @return mixed
 	 */
 	public function get(string $key = null)
 	{
@@ -88,33 +90,31 @@ class Input implements \ArrayAccess
 			return $this->items[$key];
 		}
 
-		if ($this->method !== 'GET') {
-			$return = $this->parsedBody[$key] ?? $this->queryParams[$key] ?? null;
-		} else {
-			$return = $this->queryParams[$key] ?? null;
+		$return = Arrays::get($this->parsedBody, $key);
+
+		if ($return === null) {
+			$return = Arrays::get($this->queryParams, $key);
 		}
 
 		if ($return !== null) {
 			$this->items[$key] = $return;
+		} else {
+			$this->del[$key] = true;
 		}
 
 		return $return;
 	}
 
-	public function getAll()
+	public function getAll(): array
 	{
 		if ($this->all) {
 			return $this->items->get();
 		}
 
-		$return = $this->queryParams;
-
-		if ($this->method !== 'GET') {
-			$return = array_merge(
-				$return,
-				$this->parsedBody
-			);
-		}
+		$return = array_merge(
+			$this->queryParams,
+			$this->parsedBody
+		);
 
 		if ($this->del !== []) {
 			$this->clear(
@@ -124,6 +124,7 @@ class Input implements \ArrayAccess
 		}
 
 		$this->all = true;
+
 		return $this->items->init($return);
 	}
 
@@ -131,7 +132,7 @@ class Input implements \ArrayAccess
 	 * @param array $array
 	 * @param array $del
 	 */
-	protected function clear(array &$array, array $del)
+	protected function clear(array &$array, array $del): void
 	{
 		foreach ($del as $k => $v) {
 			if (is_array($v) && isset($array[$k])) {

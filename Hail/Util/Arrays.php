@@ -36,6 +36,10 @@ class Arrays
 			return $array;
 		}
 
+		if ($array === []) {
+			return $default;
+		}
+
 		if (isset($array[$key])) {
 			return $array[$key];
 		}
