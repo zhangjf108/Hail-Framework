@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Hail\Http;
 
 use Psr\Http\Message\{
-	ServerRequestInterface,
-	StreamInterface
+	ServerRequestInterface, StreamInterface, UploadedFileInterface
 };
 
 /**
@@ -96,5 +95,33 @@ class ServerRequestWrapper
 		$this->input->set($name, $value);
 
 		return $value;
+	}
+
+	/**
+	 * @return array
+	 */
+	public function files(): array
+	{
+		return $this->serverRequest->getUploadedFiles();
+	}
+
+	/**
+	 * @param string $name
+	 *
+	 * @return null|UploadedFileInterface
+	 */
+	public function file(string $name): ?UploadedFileInterface
+	{
+		return $this->serverRequest->getUploadedFiles()[$name] ?? null;
+	}
+
+	/**
+	 * @param string $name
+	 *
+	 * @return null|string
+	 */
+	public function cookie(string $name): ?string
+	{
+		return $this->getCookieParams()[$name] ?? null;
 	}
 }

@@ -27,7 +27,6 @@ class Input implements \ArrayAccess
 	protected $method = 'GET';
 	protected $queryParams = [];
 	protected $parsedBody = [];
-	protected $uploadedFiles = [];
 
 	public function __construct(ServerRequestInterface $request)
 	{
@@ -37,7 +36,6 @@ class Input implements \ArrayAccess
 		$this->method = $request->getMethod();
 		$this->queryParams = $request->getQueryParams();
 		$this->parsedBody = $request->getParsedBody();
-		$this->uploadedFiles = $request->getUploadedFiles();
 	}
 
 	public function setAll(array $array)
@@ -91,11 +89,10 @@ class Input implements \ArrayAccess
 		}
 
 		if ($this->method !== 'GET') {
-			$return = $this->uploadedFiles[$key] ??
-				$this->parsedBody[$key] ?? null;
+			$return = $this->parsedBody[$key] ?? $this->queryParams[$key] ?? null;
+		} else {
+			$return = $this->queryParams[$key] ?? null;
 		}
-
-		$return = $return ?? $this->queryParams[$key] ?? null;
 
 		if ($return !== null) {
 			$this->items[$key] = $return;
@@ -115,8 +112,7 @@ class Input implements \ArrayAccess
 		if ($this->method !== 'GET') {
 			$return = array_merge(
 				$return,
-				$this->parsedBody,
-				$this->uploadedFiles
+				$this->parsedBody
 			);
 		}
 
