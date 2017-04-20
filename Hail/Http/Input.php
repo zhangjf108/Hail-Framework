@@ -25,8 +25,8 @@ class Input implements \ArrayAccess
 	/** @var ArrayDot */
 	protected $del = [];
 
-	/** @var array */
-	protected $queryParams;
+	/** @var ServerRequestInterface */
+	protected $request;
 
 	/** @var array */
 	protected $parsedBody;
@@ -36,8 +36,7 @@ class Input implements \ArrayAccess
 		$this->items = Arrays::dot();
 		$this->del = Arrays::dot();
 
-		$this->parsedBody = $request->getParsedBody();
-		$this->queryParams = $request->getQueryParams();
+		$this->request = $request;
 	}
 
 	public function setAll(array $array): void
@@ -90,11 +89,11 @@ class Input implements \ArrayAccess
 			return $this->items[$key];
 		}
 
-		$return = Arrays::get($this->parsedBody, $key);
+		if ($this->request->getMethod() !== 'GET') {
+            $return = Arrays::get($this->request->getParsedBody(), $key);
+        }
 
-		if ($return === null) {
-			$return = Arrays::get($this->queryParams, $key);
-		}
+        $return = $return ?? Arrays::get($this->request->getQueryParams(), $key);
 
 		if ($return !== null) {
 			$this->items[$key] = $return;
@@ -112,8 +111,8 @@ class Input implements \ArrayAccess
 		}
 
 		$return = array_merge(
-			$this->queryParams,
-			$this->parsedBody
+            $this->request->getQueryParams(),
+            $this->request->getParsedBody()
 		);
 
 		if ($this->del !== []) {

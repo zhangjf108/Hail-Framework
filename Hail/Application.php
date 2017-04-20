@@ -6,7 +6,6 @@ use Hail\Container\Container;
 use Hail\Http\Emitter\Sapi;
 use Hail\Http\Event\DispatcherNextEvent;
 use Hail\Http\HttpEvents;
-use Psr\Http\Message\ServerRequestInterface;
 
 class Application
 {
@@ -59,8 +58,9 @@ class Application
     {
         $request = $event->getRequest();
 
-        if ($this->container->get('http.request') !== $request) {
+        if ($this->get('http.request') !== $request) {
             $this->container->replace('http.request', $request);
+            $this->get('request')->setServerRequest($request);
         }
     }
 

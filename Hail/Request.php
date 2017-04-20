@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Hail\Http;
+namespace Hail;
 
+use Hail\Http\Input;
 use Hail\Util\Arrays;
 use Psr\Http\Message\{
 	ServerRequestInterface, StreamInterface, UploadedFileInterface
@@ -33,7 +34,7 @@ use Psr\Http\Message\{
  * @method array getAttributes()
  * @method mixed getAttribute(string $name, mixed $default = null)
  */
-class ServerRequestWrapper
+class Request
 {
 	/**
 	 * @var ServerRequestInterface
@@ -55,6 +56,14 @@ class ServerRequestWrapper
 		$this->serverRequest = $serverRequest;
 		$this->input = new Input($serverRequest);
 	}
+
+    /**
+     * @param ServerRequestInterface $serverRequest
+     */
+	public function setServerRequest(ServerRequestInterface $serverRequest): void
+    {
+        $this->serverRequest = $serverRequest;
+    }
 
 	public function __call($name, $arguments)
 	{

@@ -52,6 +52,11 @@ class Container implements ContainerInterface
 	 */
 	protected $alias = [];
 
+    /**
+     * @var string[][]
+     */
+	protected $abstractAlias = [];
+
 	public function __construct()
 	{
 		foreach (
@@ -117,26 +122,28 @@ class Container implements ContainerInterface
 
 		$this->active[$name] = true;
 
-		if (isset($this->config[$name])) {
-			foreach ($this->config[$name] as $index => $config) {
-				$map = $this->configMap[$name][$index];
 
-				$reflection = Reflection::createFromCallable($config);
+		if (null !== $configures = $this->getConfigure($name)) {
+            foreach ($configures as $index => $config) {
+                $map = $this->configMap[$name][$index];
 
-				if (($params = $reflection->getParameters()) !== []) {
-					$params = $this->resolve($params, $map);
-				}
+                $reflection = Reflection::createFromCallable($config);
 
-				$value = $config(...$params);
+                if (($params = $reflection->getParameters()) !== []) {
+                    $params = $this->resolve($params, $map);
+                }
 
-				if ($value !== null) {
-					$this->values[$name] = $value;
-				}
-			}
-		}
+                $value = $config(...$params);
+
+                if ($value !== null) {
+                    $this->values[$name] = $value;
+                }
+            }
+        }
 
 		return $this->values[$name];
 	}
+
 
 	/**
 	 * Check for the existence of a component with a given name.
@@ -325,6 +332,16 @@ class Container implements ContainerInterface
 		}
 
 		$this->values[$name] = $value;
+
+        if (!isset($this->abstractAlias[$name])) {
+            return;
+        }
+
+        foreach ($this->abstractAlias[$name] as $alias) {
+            if (isset($this->active[$alias])) {
+                $this->values[$alias] = $value;
+            }
+        }
 	}
 
 	/**
@@ -430,27 +447,31 @@ class Container implements ContainerInterface
 			$this->factoryMap[$name],
 			$this->alias[$name]
 		);
+
+		$this->removeAbstractAlias($name);
 	}
 
 	/**
 	 * Register a component as an alias of another registered component.
 	 *
 	 * @param string $alias new component name
-	 * @param string $name  referenced existing component name
+	 * @param string $abstract  referenced existing component name
 	 *
 	 * @throws InvalidArgumentException
 	 */
-	public function alias(string $alias, string $name): void
+	public function alias(string $alias, string $abstract): void
 	{
 		if (isset($this->values[$alias]) || isset($this->factory[$alias]) || array_key_exists($alias, $this->values)) {
 			throw new InvalidArgumentException("Already defined in container: $alias");
 		}
 
-		if ($alias === $name) {
+		if ($alias === $abstract) {
 			throw new InvalidArgumentException('Alias cannot be the same as the original name');
 		}
 
-		$this->alias[$alias] = $name;
+		$this->alias[$alias] = $abstract;
+
+		$this->abstractAlias[$abstract][] = $alias;
 	}
 
 	/**
@@ -540,6 +561,30 @@ class Container implements ContainerInterface
 		$this->configMap[$name][] = $map;
 	}
 
+    /**
+     * @param string $name
+     *
+     * @return array|null
+     */
+	protected function getConfigure(string $name): ?array
+    {
+        if (isset($this->config[$name])) {
+            return $this->config[$name];
+        }
+
+        if (!isset($this->abstractAlias[$name])) {
+            return null;
+        }
+
+        foreach ($this->abstractAlias[$name] as $alias) {
+            if (isset($this->config[$alias])) {
+                return $this->config[$alias];
+            }
+        }
+
+        return null;
+    }
+
 	/**
 	 * Creates a boxed reference to a component with a given name.
 	 *
@@ -586,7 +631,30 @@ class Container implements ContainerInterface
 			$this->factoryMap[$name],
 			$this->alias[$name]
 		);
+
+		$this->removeAbstractAlias($name);
 	}
+
+    /**
+     * Remove an alias from the contextual binding alias cache.
+     *
+     * @param  string  $searched
+     * @return void
+     */
+    protected function removeAbstractAlias($searched)
+    {
+        if (! isset($this->alias[$searched])) {
+            return;
+        }
+
+        foreach ($this->abstractAlias as $abstract => $aliases) {
+            foreach ($aliases as $index => $alias) {
+                if ($alias === $searched) {
+                    unset($this->abstractAlias[$abstract][$index]);
+                }
+            }
+        }
+    }
 
 	public function __call($name, $arguments)
 	{

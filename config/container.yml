@@ -89,6 +89,10 @@ app:
   class|to: Hail\Application
   arguments: ["@container"]
 
+request:
+  class|to: Hail\Request
+  arguments: ["@http.request"]
+
 dispatcher:
   class|to: Hail\Dispatcher
   arguments: ["@http.dispatcher"]

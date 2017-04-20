@@ -34,7 +34,7 @@ class Dispatcher implements MiddlewareInterface
     /**
      * @param (callable|MiddlewareInterface|mixed)[] $middleware middleware stack (with at least one middleware component)
      * @param ContainerInterface|null $container optional middleware resolver:
-     *                                           function (string $name): MiddlewareInterface
+     *                                           $container->get(string $name): MiddlewareInterface
      *
      * @throws \InvalidArgumentException if an empty middleware stack was given
      */
@@ -160,7 +160,7 @@ class Dispatcher implements MiddlewareInterface
     /**
      * Add last middleware to next repeat process
      */
-    public function repeat()
+    public function repeat(): void
     {
         if (!isset($this->middleware[$this->index])) {
             return;
@@ -171,21 +171,21 @@ class Dispatcher implements MiddlewareInterface
     }
 
     /**
-     * add middleware to next process
+     * Add middleware to next process
      *
      * @param $middleware
      */
-    public function after($middleware)
+    public function after($middleware): void
     {
         array_splice($this->middleware, $this->index + 1, 0, $middleware);
     }
 
     /**
-     * add middleware to the queue end
+     * Add middleware to the queue end
      *
      * @param $middleware
      */
-    public function append($middleware)
+    public function append($middleware): void
     {
         $this->middleware[] = $middleware;
     }
