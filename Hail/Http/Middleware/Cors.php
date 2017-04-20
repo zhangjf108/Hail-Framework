@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-namespace Middlewares;
+namespace Hail\Http\Middleware;
 
 use Hail\Http\Factory;
 use Psr\Http\{

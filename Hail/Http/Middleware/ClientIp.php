@@ -111,9 +111,9 @@ class ClientIp implements MiddlewareInterface
 	private function getIp(ServerRequestInterface $request)
 	{
 		if ($this->remote) {
-			$ip = file_get_contents('http://ipecho.net/plain');
-			if (self::isValid($ip)) {
-				return $ip;
+			$remoteIp = file_get_contents('http://ipecho.net/plain');
+			if (self::isValid($remoteIp)) {
+				return $remoteIp;
 			}
 		}
 

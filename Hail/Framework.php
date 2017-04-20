@@ -143,6 +143,6 @@ class Framework
 			self::init();
 		}
 
-		static::$container->get(strtolower($name));
+		return static::$container->get(strtolower($name));
 	}
 }

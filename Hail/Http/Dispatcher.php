@@ -2,6 +2,7 @@
 
 namespace Hail\Http;
 
+use Hail\Http\Event\DispatcherNextEvent;
 use Psr\Container\ContainerInterface;
 use Psr\Http\{
     ServerMiddleware\DelegateInterface,
@@ -30,7 +31,6 @@ class Dispatcher implements MiddlewareInterface
      */
     private $index;
 
-
     /**
      * @param (callable|MiddlewareInterface|mixed)[] $middleware middleware stack (with at least one middleware component)
      * @param ContainerInterface|null $container optional middleware resolver:
@@ -57,6 +57,16 @@ class Dispatcher implements MiddlewareInterface
      */
     public function next(ServerRequestInterface $request): ?MiddlewareInterface
     {
+        if ($this->container !== null) {
+            static $event;
+            if ($event === null) {
+                $event = new DispatcherNextEvent();
+            }
+
+            $this->container->get('event')
+                ->trigger($event->setRequest($request));
+        }
+
         ++$this->index;
 
         return $this->get($request);
