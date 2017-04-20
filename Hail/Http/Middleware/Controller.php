@@ -50,7 +50,7 @@ class Controller implements MiddlewareInterface
 		if ($this->container->has($class)) {
 			$controller = $this->container->get($class);
 		} else {
-			$controller = $this->container->create($class, [$request]);
+			$controller = new $class($request);
 			$this->container->inject($class, $controller);
 		}
 

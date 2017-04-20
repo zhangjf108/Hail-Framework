@@ -13,6 +13,8 @@ use Psr\Http\Message\{
 };
 
 /**
+ * @property-read Input $input
+ *
  * @author Michael Dowling and contributors to guzzlehttp/psr7
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -49,13 +51,13 @@ class ServerRequest extends Request implements ServerRequestInterface
 	private $uploadedFiles = [];
 
 	/**
-	 * @param string                               $method        HTTP method
-	 * @param string|UriInterface                  $uri           URI
-	 * @param array                                $headers       Request headers
-	 * @param string|null|resource|StreamInterface $body          Request body
-	 * @param string                               $version       Protocol version
-	 * @param array                                $serverParams  Typically the $_SERVER superglobal
-	 * @param array                                $cookies       Cookies for the message, if any.
+	 * @param string                               $method       HTTP method
+	 * @param string|UriInterface                  $uri          URI
+	 * @param array                                $headers      Request headers
+	 * @param string|null|resource|StreamInterface $body         Request body
+	 * @param string                               $version      Protocol version
+	 * @param array                                $serverParams Typically the $_SERVER superglobal
+	 * @param array                                $cookies      Cookies for the message, if any.
 	 */
 	public function __construct(
 		string $method,
@@ -75,6 +77,48 @@ class ServerRequest extends Request implements ServerRequestInterface
 		}
 
 		parent::__construct($method, $uri, $headers, $body, $version);
+	}
+
+	public function __get($name)
+	{
+		if ($name === 'input') {
+			return $this->input = new Input($this);
+		}
+
+		throw new \InvalidArgumentException('Property not defined: ' . $name);
+	}
+
+	/**
+	 * @param array|null $values
+	 *
+	 * @return array
+	 */
+	public function inputs(array $values = null): array
+	{
+		if ($values === null) {
+			return $this->input->getAll();
+		}
+
+		$this->input->setAll($values);
+
+		return $values;
+	}
+
+	/**
+	 * @param string $name
+	 * @param mixed  $value
+	 *
+	 * @return mixed
+	 */
+	public function input(string $name, $value = null)
+	{
+		if ($value === null) {
+			return $this->input->get($name);
+		}
+
+		$this->input->set($name, $value);
+
+		return $value;
 	}
 
 	/**

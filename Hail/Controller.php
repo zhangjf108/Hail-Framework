@@ -2,6 +2,7 @@
 
 namespace Hail;
 
+use Hail\Http\ServerRequestWrapper;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -14,12 +15,12 @@ abstract class Controller
 	use DITrait;
 
 	/**
-	 * @var ServerRequestInterface
+	 * @var ServerRequestWrapper
 	 */
 	protected $request;
 
-	public function __construct(ServerRequestInterface $request)
+	final public function __construct(ServerRequestInterface $request)
 	{
-		$this->request = $request;
+		$this->request = new ServerRequestWrapper($request);
 	}
 }

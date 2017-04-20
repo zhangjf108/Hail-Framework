@@ -13,8 +13,6 @@ use Hail\Facade\DI;
  * @property-read AliasLoader                  $alias
  * @property-read Router                       $router
  * @property-read I18N\I18N                    i18n
- * @property-read Http\ServerRequest           $request
- * @property-read Http\Response                $response
  * @property-read Event\EventManager           $event
  * @property-read Application                  $app
  * @property-read Output                       $output
@@ -40,7 +38,7 @@ use Hail\Facade\DI;
  */
 Trait DITrait
 {
-    public function __get(string $name)
+    final public function __get(string $name)
     {
         return $this->$name = DI::get($name);
     }

@@ -1,9 +1,10 @@
 <?php
 namespace Hail\Http;
 
-use Hail\Util\Arrays;
-use Hail\Util\ArrayDot;
-use Hail\Util\ArrayTrait;
+use Hail\Util\{
+	Arrays, ArrayDot, ArrayTrait
+};
+use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * Class Input
@@ -14,8 +15,6 @@ class Input implements \ArrayAccess
 {
 	use ArrayTrait;
 
-	protected $request;
-
 	/** @var ArrayDot */
 	protected $items = [];
 
@@ -25,17 +24,26 @@ class Input implements \ArrayAccess
 	/** @var ArrayDot */
 	protected $del = [];
 
+	protected $method = 'GET';
+	protected $queryParams = [];
+	protected $parsedBody = [];
+	protected $uploadedFiles = [];
 
-	public function __construct(ServerRequest $request)
+	public function __construct(ServerRequestInterface $request)
 	{
-		$this->request = $request;
 		$this->items = Arrays::dot();
 		$this->del = Arrays::dot();
+
+		$this->method = $request->getMethod();
+		$this->queryParams = $request->getQueryParams();
+		$this->parsedBody = $request->getParsedBody();
+		$this->uploadedFiles = $request->getUploadedFiles();
 	}
 
 	public function setAll(array $array)
 	{
 		$this->setMultiple($array);
+
 		$this->all = true;
 	}
 
@@ -78,24 +86,16 @@ class Input implements \ArrayAccess
 			return null;
 		}
 
-		if ($this->items[$key] !== null) {
+		if (isset($this->items[$key])) {
 			return $this->items[$key];
 		}
 
-		if ($this->request->getMethod() !== 'GET') {
-			if (
-				strpos(
-					$this->request->getHeaderLine('Content-Type'),
-					'multipart/form-data'
-				) !== false
-			) {
-				$return = $this->request->getUploadedFiles()[$key];
-			}
-
-			$return = $return ?? $this->request->getParsedBody()[$key] ?? null;
+		if ($this->method !== 'GET') {
+			$return = $this->uploadedFiles[$key] ??
+				$this->parsedBody[$key] ?? null;
 		}
 
-		$return = $return ?? $this->request->getQueryParams()[$key] ?? null;
+		$return = $return ?? $this->queryParams[$key] ?? null;
 
 		if ($return !== null) {
 			$this->items[$key] = $return;
@@ -110,22 +110,15 @@ class Input implements \ArrayAccess
 			return $this->items->get();
 		}
 
-		$return = [];
+		$return = $this->queryParams;
 
-		if (!$this->request->getMethod() === 'GET') {
-			if (
-				strpos(
-					$this->request->getHeaderLine('Content-Type'),
-					'multipart/form-data'
-				) !== false
-			) {
-				$return += $this->request->getUploadedFiles() ?? [];
-			}
-
-			$return += $this->request->getParsedBody() ?? [];
+		if ($this->method !== 'GET') {
+			$return = array_merge(
+				$return,
+				$this->parsedBody,
+				$this->uploadedFiles
+			);
 		}
-
-		$return += $this->request->getQueryParams();
 
 		if ($this->del !== []) {
 			$this->clear(

@@ -56,7 +56,6 @@ http.request:
   to:
     - Hail\Http\ServerRequest
     - Psr\Http\Message\ServerRequestInterface
-    - request
 
 http.dispatcher:
   class|to: Hail\Http\Dispatcher
