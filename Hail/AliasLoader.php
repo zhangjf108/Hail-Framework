@@ -32,7 +32,7 @@ class AliasLoader
 	 *
 	 * @var string
 	 */
-	protected static $facadeNamespace = 'Facades\\';
+	protected static $facadeNamespace = 'Facade\\';
 
 	/**
 	 * Create a new AliasLoader instance.
@@ -55,7 +55,9 @@ class AliasLoader
 	{
 		if (strpos($alias, static::$facadeNamespace) === 0) {
 			return $this->loadFacade($alias);
-		} elseif (isset($this->aliases[$alias])) {
+		}
+
+		if (isset($this->aliases[$alias])) {
 			return class_alias($this->aliases[$alias], $alias);
 		}
 
@@ -86,11 +88,11 @@ class AliasLoader
 	 */
 	protected function ensureFacadeExists($alias): string
 	{
-		if (file_exists($path = TEMP_PATH . 'facade/' . str_replace('\\', '/', $alias) . '.php')) {
+		if (file_exists($path = RUNTIME_PATH . 'facade/' . str_replace('\\', '/', $alias) . '.php')) {
 			return $path;
 		}
 
-		if (!@mkdir($dir = dirname($path)) && !is_dir($dir)) {
+		if (!is_dir($dir = dirname($path)) && !@mkdir($dir) && !is_dir($dir)) {
 			throw new \RuntimeException('Temp directory permission denied');
 		}
 
@@ -118,21 +120,14 @@ class AliasLoader
 <?php
 namespace $namespace;
 
-use Hail\Facades\Facade;
+use Hail\Facade\FacadeDynamic;
 
 /**
  * @see $target
  */
-class $class extends Facade
+class $class extends FacadeDynamic
 {
-    protected static function instance()
-    {
-        if (method_exists('$target', 'getInstance')) {
-            return $target::getInstance();
-		}
-
-        return new $target;
-    }
+    protected static \$name = '$target';
 }
 STUB;
 

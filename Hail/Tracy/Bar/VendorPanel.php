@@ -3,7 +3,7 @@
 namespace Hail\Tracy\Bar;
 
 use Hail\Exception\JsonException;
-use Hail\Facades\Json;
+use Hail\Util\Json;
 
 /**
  * Bar panel for Tracy (https://tracy.nette.org/) shows versions of libraries parsed from composer.lock.
@@ -22,7 +22,7 @@ class VendorPanel implements PanelInterface
 
 	public function __construct()
 	{
-		$dir = realpath(SYSTEM_PATH);
+		$dir = realpath(BASE_PATH);
 		if (!is_dir($dir)) {
 			$this->error = "Path '$dir' is not a directory.";
 		} elseif (!is_file($dir . DIRECTORY_SEPARATOR . 'composer.lock')) {

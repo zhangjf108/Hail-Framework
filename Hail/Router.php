@@ -7,277 +7,283 @@
 namespace Hail;
 
 use Hail\Util\OptimizeTrait;
-use Hail\Facades\Serialize;
+use Hail\Facade\Serialize;
 
 /**
  * Class Router
  *
  * @package Hail
- * @author Hao Feng <flyinghail@msn.com>
+ * @author  Hao Feng <flyinghail@msn.com>
  */
 class Router
 {
-	use OptimizeTrait;
+    use OptimizeTrait;
 
-	const PARAM_REGEXP = '/^{((([^:]+):(.+))|(.+))}$/';
-	const SEPARATOR_TRIM = "/ \t\n\r";
-	private $routes = ['children' => [], 'regexps' => []];
-	private $result = [];
+    const PARAM_REGEXP = '/^{((([^:]+):(.+))|(.+))}$/';
+    const SEPARATOR_TRIM = "/ \t\n\r";
+    private $routes = ['children' => [], 'regexps' => []];
+    private $result = [];
 
-	public function __construct($config)
-	{
-		$this->addRoutes($config);
-	}
+    public function __construct($config)
+    {
+        $this->addRoutes($config);
+    }
 
-	private function match($url)
-	{
-		$parts = explode('?', $url, 2);
-		$parts = explode('/', trim($parts[0], static::SEPARATOR_TRIM));
-		if (!isset($parts[1]) && $parts[0] === '') {
-			$parts = [];
-		}
+    private function match($url)
+    {
+        $parts = explode('?', $url, 2)[0];
+        $parts = explode('/', trim($parts, static::SEPARATOR_TRIM));
+        if (!isset($parts[1]) && $parts[0] === '') {
+            $parts = [];
+        }
 
-		$params = [];
-		$current = $this->routes;
-		foreach ($parts as $v) {
-			if (isset($current['children'][$v])) {
-				$current = $current['children'][$v];
-				continue;
-			}
+        $params = [];
+        $current = $this->routes;
+        foreach ($parts as $v) {
+            if (isset($current['children'][$v])) {
+                $current = $current['children'][$v];
+                continue;
+            }
 
-			foreach ($current['regexps'] as $regexp => $route) {
-				if (preg_match($regexp, $v)) {
-					$current = $route;
-					$params[$current['name']] = $v;
-					continue 2;
-				}
-			}
+            foreach ($current['regexps'] as $regexp => $route) {
+                if (preg_match($regexp, $v)) {
+                    $current = $route;
+                    $params[$current['name']] = $v;
+                    continue 2;
+                }
+            }
 
-			if (!isset($current['others'])) {
-				return null;
-			}
+            if (!isset($current['others'])) {
+                return null;
+            }
 
-			$current = $current['others'];
-			$params[$current['name']] = $v;
-		}
+            $current = $current['others'];
+            $params[$current['name']] = $v;
+        }
 
-		if (!isset($current['methods'])) {
-			return null;
-		}
+        if (!isset($current['methods'])) {
+            return null;
+        }
 
-		return [
-			'methods' => $current['methods'],
-			'route' => $current['route'],
-			'params' => $params,
-		];
-	}
+        return [
+            'methods' => $current['methods'],
+            'route' => $current['route'],
+            'params' => $params,
+        ];
+    }
 
-	/**
-	 * @param array $config
-	 */
-	protected function addRoutes($config)
-	{
-		$sign = hash('sha256', Serialize::encode($config));
-		$check = static::optimizeGet('routesSign');
-		if ($check === $sign) {
-			$this->routes = static::optimizeGet('routes');
+    /**
+     * @param array $config
+     */
+    protected function addRoutes($config)
+    {
+        $sign = sha1(Serialize::encode($config));
+        $check = static::optimizeGet('routesSign');
+        if ($check === $sign) {
+            $this->routes = static::optimizeGet('routes');
 
-			return;
-		}
+            return;
+        }
 
-		foreach ($config as $app => $rules) {
-			$app = ucfirst($app);
-			foreach ($rules as $route => $rule) {
-				$handler = ['app' => $app];
-				$methods = ['GET', 'POST'];
+        foreach ($config as $app => $rules) {
+            $app = ucfirst($app);
+            foreach ($rules as $route => $rule) {
+                $handler = ['app' => $app];
+                $methods = ['GET', 'POST'];
 
-				if (is_string($rule)) {
-					$route = $rule;
-				} else {
-					$methods = $rule['methods'] ?? $methods;
+                if (is_string($rule)) {
+                    $route = $rule;
+                } else {
+                    $methods = $rule['methods'] ?? $methods;
 
-					if (!empty($rule['controller'])) {
-						$handler['controller'] = $rule['controller'];
-					}
+                    if (!empty($rule['controller'])) {
+                        $handler['controller'] = $rule['controller'];
+                    }
 
-					if (!empty($rule['action'])) {
-						$handler['action'] = $rule['action'];
-					}
-				}
+                    if (!empty($rule['action'])) {
+                        $handler['action'] = $rule['action'];
+                    }
+                }
 
-				$this->addRoute($methods, $route, $handler);
-			}
-		}
+                $this->addRoute($methods, $route, $handler);
+            }
+        }
 
-		static::optimizeSet([
-			'routes' => $this->routes,
-			'routesSign' => $sign,
-		]);
-	}
+        static::optimizeSet([
+            'routes' => $this->routes,
+            'routesSign' => $sign,
+        ]);
+    }
 
-	/**
-	 * @param array $methods
-	 * @param string $route
-	 * @param array $handler
-	 */
-	public function addRoute(array $methods, string $route, array $handler)
-	{
-		$parts = explode('/', trim($route, static::SEPARATOR_TRIM));
+    /**
+     * @param array          $methods
+     * @param string         $route
+     * @param array|callable $handler
+     *
+     * @throws \InvalidArgumentException
+     */
+    public function addRoute(array $methods, string $route, $handler)
+    {
+        if (is_callable($handler)) {
+            $handler = \Closure::fromCallable($handler);
+        } elseif (!is_array($handler)) {
+            throw new \InvalidArgumentException('Handler is not a valid type: ' . var_export($handler, true));
+        }
 
-		if (!isset($parts[1]) && $parts[0] === '') {
-			$parts = [];
-		}
+        $parts = explode('/', trim($route, static::SEPARATOR_TRIM));
 
-		$current = &$this->routes;
-		foreach ($parts as $v) {
-			$paramsMatch = preg_match(static::PARAM_REGEXP, $v, $paramsMatches);
-			if ($paramsMatch) {
-				if (!empty($paramsMatches[2])) {
-					$paramsMatches[4] = '/^' . addcslashes($paramsMatches[4], '/') . '$/';
-					if (!isset($current['regexps'][$paramsMatches[4]])) {
-						$current['regexps'][$paramsMatches[4]] = [
-							'children' => [],
-							'regexps' => [],
-							'name' => $paramsMatches[3],
-						];
-					}
-					$current = &$current['regexps'][$paramsMatches[4]];
-				} else {
-					if (!isset($current['others'])) {
-						$current['others'] = [
-							'children' => [],
-							'regexps' => [],
-							'name' => $paramsMatches[5],
-						];
-					}
-					$current = &$current['others'];
-				}
-			} else {
-				if (!isset($current['children'][$v])) {
-					$current['children'][$v] = [
-						'children' => [],
-						'regexps' => [],
-					];
-				}
-				$current = &$current['children'][$v];
-			}
-		}
+        if (!isset($parts[1]) && $parts[0] === '') {
+            $parts = [];
+        }
 
-		$current['route'] = $route;
+        $current = &$this->routes;
+        foreach ($parts as $v) {
+            $paramsMatch = preg_match(static::PARAM_REGEXP, $v, $paramsMatches);
+            if ($paramsMatch) {
+                if (!empty($paramsMatches[2])) {
+                    $paramsMatches[4] = '/^' . addcslashes($paramsMatches[4], '/') . '$/';
+                    if (!isset($current['regexps'][$paramsMatches[4]])) {
+                        $current['regexps'][$paramsMatches[4]] = [
+                            'children' => [],
+                            'regexps' => [],
+                            'name' => $paramsMatches[3],
+                        ];
+                    }
+                    $current = &$current['regexps'][$paramsMatches[4]];
+                } else {
+                    if (!isset($current['others'])) {
+                        $current['others'] = [
+                            'children' => [],
+                            'regexps' => [],
+                            'name' => $paramsMatches[5],
+                        ];
+                    }
+                    $current = &$current['others'];
+                }
+            } else {
+                if (!isset($current['children'][$v])) {
+                    $current['children'][$v] = [
+                        'children' => [],
+                        'regexps' => [],
+                    ];
+                }
+                $current = &$current['children'][$v];
+            }
+        }
 
-		if (!isset($current['methods'])) {
-			$current['methods'] = [];
-		}
+        $current['route'] = $route;
 
-		foreach ($methods as $v) {
-			$current['methods'][strtoupper($v)] = $handler;
-		}
-	}
+        if (!isset($current['methods'])) {
+            $current['methods'] = [];
+        }
 
-	/**
-	 * @param string $url
-	 *
-	 * @return array|null
-	 */
-	public function getOptions(string $url)
-	{
-		$route = $this->match($url);
-		if (!$route) {
-			return null;
-		}
+        foreach ($methods as $v) {
+            $current['methods'][strtoupper($v)] = $handler;
+        }
+    }
 
-		return array_keys($route['methods']);
-	}
+    /**
+     * @param string $url
+     *
+     * @return array|null
+     */
+    public function getOptions(string $url)
+    {
+        $route = $this->match($url);
+        if (!$route) {
+            return null;
+        }
 
-	/**
-	 * @param string $method
-	 * @param string $url
-	 *
-	 * @return array
-	 */
-	public function dispatch(string $method, string $url)
-	{
-		$route = $this->match($url);
-		if (!$route) {
-			return $this->result = [
-				'error' => 404,
-				'method' => $method,
-				'url' => $url,
-			];
-		} else if (isset($route['methods'][$method])) {
-			$params = $route['params'];
-			$handler = $route['methods'][$method];
+        return array_keys($route['methods']);
+    }
 
-			return $this->result = [
-				'method' => $method,
-				'url' => $url,
-				'route' => $route['route'],
-				'params' => $params,
-				'handler' => [
-					'app' => $handler['app'],
-					'controller' => $handler['controller'] ?? $params['controller'] ?? '',
-					'action' => $handler['action'] ?? $params['action'] ?? '',
-				],
-			];
-		}
+    /**
+     * @param string $method
+     * @param string $url
+     *
+     * @return array
+     */
+    public function dispatch(string $method, string $url)
+    {
+        $route = $this->match($url);
+        if (!$route) {
+            return $this->result = [
+                'error' => 404,
+                'method' => $method,
+                'url' => $url,
+            ];
+        }
 
-		return $this->result = [
-			'error' => 405,
-			'method' => $method,
-			'url' => $url,
-			'route' => $route['route'],
-			'params' => $route['params'],
-			'allowed' => array_keys($route['methods']),
-		];
-	}
+        if (isset($route['methods'][$method])) {
+            $params = $route['params'];
+            $handler = $route['methods'][$method];
 
-	public function getResult()
-	{
-		return $this->result;
-	}
+            if (!$handler instanceof \Closure) {
+                $handler = [
+                    'app' => $handler['app'] ?? $params['app'] ?? '',
+                    'controller' => $handler['controller'] ?? $params['controller'] ?? '',
+                    'action' => $handler['action'] ?? $params['action'] ?? '',
+                ];
 
-	public function getRoutes()
-	{
-		return $this->routes;
-	}
+                unset($params['app'], $params['controller'], $params['action']);
+            }
 
-	public function options(string $route, array $handler)
-	{
-		$this->addRoute(['OPTIONS'], $route, $handler);
-	}
+            return $this->result = [
+                'method' => $method,
+                'url' => $url,
+                'route' => $route['route'],
+                'params' => $params,
+                'handler' => $handler,
+            ];
+        }
 
-	public function get(string $route, array $handler)
-	{
-		$this->addRoute(['GET'], $route, $handler);
-	}
+        return $this->result = [
+            'error' => 405,
+            'method' => $method,
+            'url' => $url,
+            'route' => $route['route'],
+            'params' => $route['params'],
+            'allowed' => array_keys($route['methods']),
+        ];
+    }
 
-	public function head(string $route, array $handler)
-	{
-		$this->addRoute(['HEAD'], $route, $handler);
-	}
+    public function getResult()
+    {
+        return $this->result;
+    }
 
-	public function post(string $route, array $handler)
-	{
-		$this->addRoute(['POST'], $route, $handler);
-	}
+    public function getRoutes()
+    {
+        return $this->routes;
+    }
 
-	public function put(string $route, array $handler)
-	{
-		$this->addRoute(['PUT'], $route, $handler);
-	}
+    public function __call($name, $arguments)
+    {
+        static $methods = [
+            'HEAD' => true,
+            'GET' => true,
+            'POST' => true,
+            'PUT' => true,
+            'PATCH' => true,
+            'DELETE' => true,
+            'PURGE' => true,
+            'OPTIONS' => true,
+            'TRACE' => true,
+            'CONNECT' => true,
+        ];
 
-	public function delete(string $route, array $handler)
-	{
-		$this->addRoute(['DELETE'], $route, $handler);
-	}
+        $method = strtoupper($name);
 
-	public function trace(string $route, array $handler)
-	{
-		$this->addRoute(['TRACE'], $route, $handler);
-	}
+        if (!isset($methods[$method])) {
+            throw new \BadMethodCallException('Method not defined: ' . $method);
+        }
 
-	public function connect(string $route, array $handler)
-	{
-		$this->addRoute(['CONNECT'], $route, $handler);
-	}
+        [$route, $handler] = $arguments;
+
+        if (!is_string($route)) {
+            throw new \InvalidArgumentException('Route rule is not string: ' . gettype($route));
+        }
+
+        $this->addRoute([$method], $route, $handler);
+    }
 }

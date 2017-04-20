@@ -1,5 +1,7 @@
 <?php
-require __DIR__ . '/bootstrap.php';
+require __DIR__ . '/autoload.php';
+
+Hail\Framework::init();
 
 if (strpos(__DIR__, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) === false) {
 	Hail\Loader::buildMap();
@@ -8,11 +10,8 @@ if (strpos(__DIR__, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) === fa
 	echo 'Please use "composer dump-autoload --optimize" to optimize autoload performance.', "\n";
 }
 
-DI::buildMap();
-echo 'DI Map Generated', "\n";
-
-Alias::buildMap();
-echo 'Alias Map Generated', "\n";
+(new Hail\Container\Compiler())->compile();
+echo 'Container Generated', "\n";
 
 $helperDir = __DIR__ . '/helper/';
 if (!is_dir($helperDir)) {
@@ -27,31 +26,19 @@ foreach (scandir($helperDir) as $file) {
 	unlink($helperDir . $file);
 }
 
-$alias = include Config::get('.hail.map.alias');
-$template = <<<EOD
-<?php
-class %s extends %s {}
-EOD;
-
-foreach ($alias as $k => $v) {
-	file_put_contents($helperDir . $k . '.php', sprintf($template, $k, $v));
-}
-echo 'Alias Class Helper Generated', "\n";
-
-
 foreach (
 	[
-		['App\\Library', SYSTEM_PATH, function ($class) {
+		['App\\Library', BASE_PATH, function ($class) {
 			$ref = new ReflectionClass($class);
 			return $ref->isInstantiable();
 		}],
-		['App\\Model', SYSTEM_PATH, function ($class) {
+		['App\\Model', BASE_PATH, function ($class) {
 			$ref = new ReflectionClass($class);
 			return $ref->isInstantiable();
 		}]
 	] as $v
 ) {
-	list($namespace, $root, $check) = $v;
+	[$namespace, $root, $check] = $v;
 
 	$comment = '/**' . "\n";
 	$dir = $root . str_replace('\\', '/', $namespace);

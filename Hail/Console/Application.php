@@ -41,12 +41,12 @@ use Hail\Console\Helper\{
 };
 use Hail\Console\Event\{
 	ConsoleCommandEvent,
-	ConsoleExceptionEvent,
+	ConsoleErrorEvent,
 	ConsoleTerminateEvent
 };
 use Hail\Console\Exception\CommandNotFoundException;
 use Hail\Console\Exception\LogicException;
-use Hail\Facades\Event;
+use Hail\Facade\Event;
 use Hail\Exception\FatalThrowableError;
 
 /**
@@ -105,7 +105,6 @@ class Application
 	 * @param OutputInterface $output An Output instance
 	 *
 	 * @return int 0 if everything went fine, or an error code
-	 * @throws \Exception
 	 */
 	public function run(InputInterface $input = null, OutputInterface $output = null)
 	{
@@ -123,16 +122,51 @@ class Application
 		$this->configureIO($input, $output);
 
 		try {
+			$e = null;
 			$exitCode = $this->doRun($input, $output);
 		} catch (\Exception $e) {
+			$exception = $e;
+		} catch (\Throwable $e) {
+			$exception = new FatalThrowableError($e);
+		}
+
+		if (null !== $e) {
+			$eventParams = [
+				'command' => $this->runningCommand,
+				'input' => $input,
+				'output' => $output,
+				'exitCode' => $e->getCode(),
+			];
+			$event = new ConsoleErrorEvent(ConsoleEvents::ERROR, $eventParams + ['error' => $e]);
+			Event::trigger($event);
+
+			$e = $event->getError();
+
+			if ($event->isErrorHandled()) {
+				$e = null;
+				$exitCode = 0;
+			} else {
+				if (!$e instanceof \Exception) {
+					throw $e;
+				}
+				$exitCode = $e->getCode();
+			}
+
+			$eventParams['exitCode'] = $exitCode;
+			Event::trigger(
+				new ConsoleTerminateEvent(ConsoleEvents::TERMINATE, $eventParams)
+			);
+		}
+
+		if (null !== $e) {
 			if (!$this->catchExceptions) {
 				throw $e;
 			}
 
 			if ($output instanceof ConsoleOutputInterface) {
-				$this->renderException($e, $output->getErrorOutput());
+				$this->renderException($exception, $output->getErrorOutput());
 			} else {
-				$this->renderException($e, $output);
+				$this->renderException($exception, $output);
 			}
 
 			$exitCode = $e->getCode();
@@ -568,7 +602,7 @@ class Application
 		}
 
 		$exact = in_array($name, $commands, true);
-		if (isset($commandList) && !$exact) {
+		if (count($commands) > 1 && !$exact) {
 			$usableWidth = $this->terminal->getWidth() - 10;
 			$abbrevs = array_values($commands);
 			$maxLen = 0;
@@ -657,12 +691,12 @@ class Application
 			if (defined('HHVM_VERSION') && $width > 1 << 31) {
 				$width = 1 << 31;
 			}
-			$formatter = $output->getFormatter();
+
 			$lines = [];
 			foreach (preg_split('/\r?\n/', $e->getMessage()) as $line) {
 				foreach ($this->splitStringByWidth($line, $width - 4) as $line) {
 					// pre-format lines to get the right string length
-					$lineLength = $this->stringWidth(preg_replace('/\[[^m]*m/', '', $formatter->format($line))) + 4;
+					$lineLength = $this->stringWidth($line) + 4;
 					$lines[] = [$line, $lineLength];
 
 					$len = max($lineLength, $len);
@@ -670,15 +704,16 @@ class Application
 			}
 
 			$messages = [];
-			$messages[] = $emptyLine = $formatter->format(sprintf('<error>%s</error>', str_repeat(' ', $len)));
-			$messages[] = $formatter->format(sprintf('<error>%s%s</error>', $title, str_repeat(' ', max(0, $len - $this->stringWidth($title)))));
+			$messages[] = $emptyLine = sprintf('<error>%s</error>', str_repeat(' ', $len));
+			$messages[] = sprintf('<error>%s%s</error>', $title, str_repeat(' ', max(0, $len - $this->stringWidth($title))));
+
 			foreach ($lines as $line) {
-				$messages[] = $formatter->format(sprintf('<error>  %s  %s</error>', $line[0], str_repeat(' ', $len - $line[1])));
+				$messages[] = sprintf('<error>  %s  %s</error>', OutputFormatter::escape($line[0]), str_repeat(' ', $len - $line[1]));
 			}
 			$messages[] = $emptyLine;
 			$messages[] = '';
 
-			$output->writeln($messages, OutputInterface::OUTPUT_RAW | OutputInterface::VERBOSITY_QUIET);
+			$output->writeln($messages, OutputInterface::VERBOSITY_QUIET);
 
 			if (OutputInterface::VERBOSITY_VERBOSE <= $output->getVerbosity()) {
 				$output->writeln('<comment>Exception trace:</comment>', OutputInterface::VERBOSITY_QUIET);
@@ -853,47 +888,17 @@ class Application
 			// ignore invalid options/arguments for now, to allow the event listeners to customize the InputDefinition
 		}
 
-		// don't bind the input again as it would override any input argument/option set from the command event in
-		// addition to being useless
-		$command->setInputBound(true);
-
-		$eventParams = compact('command', 'input', 'output');
+		$eventParams = ['command' => $command, 'input' => $input, 'output' => $output];
 		$event = new ConsoleCommandEvent(ConsoleEvents::COMMAND, $eventParams);
 		Event::trigger($event);
 
-		$exitCode = ConsoleCommandEvent::RETURN_CODE_DISABLED;
 		if ($event->commandShouldRun()) {
-			try {
-				$e = null;
-				$exitCode = $command->run($input, $output);
-			} catch (\Exception $x) {
-				$e = $x;
-			} catch (\Throwable $x) {
-				$e = new FatalThrowableError($x);
-			}
-
-			if (null !== $e) {
-				$eventParams['exception'] = $e;
-				$eventParams['exitCode'] = (int) $e->getCode();
-				$event = new ConsoleExceptionEvent(ConsoleEvents::EXCEPTION, $eventParams);
-				Event::trigger($event);
-
-				if ($e !== $event->getException()) {
-					$x = $e = $event->getException();
-					$eventParams['exitCode'] = (int) $e->getCode();
-				}
-
-				unset($eventParams['exception']);
-				Event::trigger(
-					new ConsoleTerminateEvent(ConsoleEvents::TERMINATE, $eventParams)
-				);
-
-				throw $x;
-			}
+			$exitCode = $command->run($input, $output);
+		} else {
+			$exitCode = ConsoleCommandEvent::RETURN_CODE_DISABLED;
 		}
 
-		$eventParams['exitCode'] = $exitCode;
-		$event = new ConsoleTerminateEvent(ConsoleEvents::TERMINATE, $eventParams);
+		$event = new ConsoleTerminateEvent(ConsoleEvents::TERMINATE, $eventParams + ['exitCode' => $exitCode]);
 		Event::trigger($event);
 
 		return $event->getExitCode();
@@ -1034,7 +1039,7 @@ class Application
 		$alternatives = array_filter($alternatives, function ($lev) use ($threshold) {
 			return $lev < 2 * $threshold;
 		});
-		asort($alternatives);
+		ksort($alternatives, SORT_NATURAL | SORT_FLAG_CASE);
 
 		return array_keys($alternatives);
 	}

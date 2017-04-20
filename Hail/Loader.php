@@ -1,7 +1,8 @@
 <?php
 namespace Hail;
 
-defined('TEMP_PATH') || define('TEMP_PATH', SYSTEM_PATH . 'temp/');
+defined('STORAGE_PATH') || define('STORAGE_PATH', BASE_PATH . 'storage' . DIRECTORY_SEPARATOR);
+defined('RUNTIME_PATH') || define('RUNTIME_PATH', STORAGE_PATH . 'runtime' . DIRECTORY_SEPARATOR);
 define('HAIL_PATH', substr(__DIR__, 0, -4));
 
 /**
@@ -9,7 +10,7 @@ define('HAIL_PATH', substr(__DIR__, 0, -4));
  */
 class Loader
 {
-	protected static $mapFile = TEMP_PATH . 'runtime/map.autoload.php';
+	protected static $mapFile = RUNTIME_PATH . 'map.autoload.php';
 	protected static $classesMap;
 
 	protected static $registered = false;
@@ -22,7 +23,7 @@ class Loader
 	 */
 	protected static $prefixes = [
 		'Hail' => HAIL_PATH . 'Hail/', // Hail Framework Classes
-		'App' => SYSTEM_PATH . 'App/', // App Classes
+		'App' => BASE_PATH . 'App/', // App Classes
 		'Psr' => HAIL_PATH . 'Psr/', // Psr Interface
 	];
 
@@ -78,6 +79,9 @@ class Loader
 
 	public static function buildMap()
 	{
+		self::$classesMap = [];
+		@unlink(self::$mapFile);
+
 		$map = [];
 		foreach (self::$prefixes as $prefix => $path) {
 			$path = rtrim($path, '/');
@@ -95,7 +99,9 @@ class Loader
 					$prefix . str_replace($path, '', substr($file, 0, -4))
 				);
 
-				$map[$class] = realpath($file);
+				if (class_exists($class) || interface_exists($class) || trait_exists($class)) {
+					$map[$class] = realpath($file);
+				}
 			}
 		}
 

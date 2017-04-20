@@ -1,0 +1,2 @@
+directory: ${BASE_PATH}App/Views/
+cache: ${STORAGE_PATH}template/

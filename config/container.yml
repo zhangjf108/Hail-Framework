@@ -1,0 +1,129 @@
+# Feature
+config: Hail\Config
+
+alias:
+  class|to: Hail\AliasLoader
+  arguments: [CONFIG.alias]
+
+i18n: Hail\I18N\I18N
+
+event: Hail\Event\EventManager
+
+acl: Hail\Acl
+
+browser: Hail\Browser
+
+cache: "@cache.simple"
+
+cache.simple:
+  factory: Hail\Factory\Cache::simple
+  to:
+    - Hail\Cache\Simple\CacheInterface
+    - Psr\SimpleCache\CacheInterface
+
+cache.pool:
+  factory: Hail\Factory\Cache::pool
+  to:
+    - Hail\Cache\CacheItemPoolInterface
+    - Psr\Cache\CacheItemPoolInterface
+
+cookie:
+  class|to: Hail\Cookie
+  arguments: [CONFIG.cookie]
+
+db: Hail\Factory\Database::pdo
+
+cdb: Hail\Database\Cache
+
+output: Hail\Output
+
+router:
+  class|to: Hail\Router
+  arguments: [CONFIG.route]
+
+session:
+  class|to: Hail\Session
+  arguments: [CONFIG.session, CONFIG.cookie]
+
+storage: Hail\Factory\Storage::mount
+
+template:
+  class|to: Hail\Latte\Engine
+  arguments: [CONFIG.template]
+
+http.request:
+  factory: Hail\Http\ServerRequest::fromGlobals
+  to:
+    - Hail\Http\ServerRequest
+    - Psr\Http\Message\ServerRequestInterface
+    - request
+
+http.dispatcher:
+  class|to: Hail\Http\Dispatcher
+  arguments: [CONFIG.middleware, "@container"]
+
+# Tools
+arrays: Hail\Util\Arrays
+
+crypto:
+  class|to: Hail\Util\Crypto
+  arguments: [CONFIG.crypto.format]
+
+debugger: Hail\Tracy\Debugger
+
+generators: Hail\Util\Generators
+
+inflector: Hail\Util\Inflector
+
+json: Hail\Util\Json
+
+serialize:
+  class|to: Hail\Util\Serialize
+  arguments: [CONFIG.env.serialize]
+
+strings: Hail\Util\Strings
+
+validator: Hail\Util\Validator
+
+# Application
+app:
+  class|to: Hail\Application
+  arguments: ["@container"]
+
+dispatcher:
+  class|to: Hail\Dispatcher
+  arguments: ["@http.dispatcher"]
+
+lib:
+  class: Hail\Util\ObjectFactory
+  arguments:
+    - App\Library
+
+model:
+  class: Hail\Util\ObjectFactory
+  arguments:
+    - App\Model
+
+# Middleware
+Hail\Http\Middleware\ErrorHandler: []
+Hail\Http\Middleware\MethodOverride: []
+Hail\Http\Middleware\BasePath:
+  arguments: [CONFIG.app.basePath]
+Hail\Http\Middleware\ClientIp:
+  calls:
+    proxy: [CONFIG.env.proxies]
+Hail\Http\Middleware\Cors:
+  arguments: ["CONFIG.cors"]
+Hail\Http\Middleware\Payload: []
+Hail\Http\Middleware\ScriptPath: []
+Hail\Http\Middleware\TrailingSlash: []
+
+# Hail Framework middleware
+Hail\Http\Middleware\I18n:
+  arguments: ["@container"]
+Hail\Http\Middleware\Route:
+  arguments: ["@container"]
+Hail\Http\Middleware\Controller:
+  arguments: ["@container"]
+
+

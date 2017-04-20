@@ -1,343 +1,516 @@
 <?php
 
-/**
- * This file is part of the Nette Framework (https://nette.org)
- * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
- */
-
 namespace Hail\Http;
 
-use Hail\Facades\{
-	Response as Res,
-	Request as Req,
-	Arrays
+use Hail\Util\Strings;
+use Psr\Http\Message\{
+	MessageInterface, StreamInterface
 };
 
 /**
- * Rendering helpers for HTTP.
+ * Class Helpers
  *
+ * @package Hail\Http
  */
 class Helpers
 {
-	/** @internal */
-	const KEY_CHARS = '#^[\x09\x0A\x0D\x20-\x7E\xA0-\x{10FFFF}]*+\z#u';
+	private static $methods = [
+		'HEAD' => 'HEAD',
+		'GET' => 'GET',
+		'POST' => 'POST',
+		'PUT' => 'PUT',
+		'PATCH' => 'PATCH',
+		'DELETE' => 'DELETE',
+		'PURGE' => 'PURGE',
+		'OPTIONS' => 'OPTIONS',
+		'TRACE' => 'TRACE',
+		'CONNECT' => 'CONNECT',
+	];
 
-	/** @internal */
-	const VAL_CHARS = '#[^\x09\x0A\x0D\x20-\x7E\xA0-\x{10FFFF}]+#u';
-
-	protected static $cached = [];
-
-	/**
-	 * Attempts to cache the sent entity by its last modification date.
-	 *
-	 * @param  string|int|\DateTime $lastModified last modified time
-	 * @param  string               $etag         strong entity tag validator
-	 */
-	public static function isModified($lastModified = null, string $etag = null): bool
+	public static function normalizeHeaderName($header)
 	{
-		if ($lastModified) {
-			Res::setHeader('Last-Modified', static::formatDate($lastModified));
-		}
-		if ($etag) {
-			Res::setHeader('ETag', '"' . addslashes($etag) . '"');
+		if (strpos($header, '_') !== false) {
+			$header = str_replace('_', '-', $header);
 		}
 
-		$ifNoneMatch = Req::getHeader('If-None-Match');
-		if ($ifNoneMatch === '*') {
-			$match = true; // match, check if-modified-since
-		} elseif ($ifNoneMatch !== null) {
-			$etag = Res::getHeader('ETag');
-
-			if ($etag === null || strpos(' ' . strtr($ifNoneMatch, ",\t", '  '), ' ' . $etag) === false) {
-				return true;
-			} else {
-				$match = true; // match, check if-modified-since
-			}
-		}
-
-		$ifModifiedSince = Req::getHeader('If-Modified-Since');
-		if ($ifModifiedSince !== null) {
-			$lastModified = Res::getHeader('Last-Modified');
-			if ($lastModified !== null && strtotime($lastModified) <= strtotime($ifModifiedSince)) {
-				$match = true;
-			} else {
-				return true;
-			}
-		}
-
-		if (empty($match)) {
-			return true;
-		}
-
-		Res::setCode(Response::S304_NOT_MODIFIED);
-
-		return false;
+		return ucwords(strtolower($header), '-');
 	}
 
-
-	/**
-	 * Returns HTTP valid date format.
-	 *
-	 * @param  string|int|\DateTimeInterface
-	 */
-	public static function formatDate($time): string
+	public static function getHeaders(array $server = null)
 	{
-		$time = self::createDateTime($time);
-		$time->setTimezone(new \DateTimeZone('GMT'));
-
-		return $time->format('D, d M Y H:i:s \G\M\T');
-	}
-
-	/**
-	 * DateTime object factory.
-	 *
-	 * @param  string|int|\DateTimeInterface
-	 *
-	 * @return \DateTimeInterface
-	 */
-	public static function createDateTime($time)
-	{
-		if ($time instanceof \DateTimeInterface) {
-			return new \DateTime($time->format('Y-m-d H:i:s'), $time->getTimezone());
-		} elseif (is_numeric($time)) {
-			// average year in seconds
-			if ($time <= 31557600) {
-				$time += time();
+		if ($server === null) {
+			if (function_exists('getallheaders')) {
+				return getallheaders();
 			}
 
-			return new \DateTime('@' . $time,
-				new \DateTimeZone(date_default_timezone_get())
-			);
+			$server = $_SERVER;
 		}
 
-		return new \DateTime($time);
-	}
+		$headers = [];
+		$serverMap = [
+			'CONTENT_TYPE' => 'Content-Type',
+			'CONTENT_LENGTH' => 'Content-Length',
+			'CONTENT_MD5' => 'Content-Md5',
+		];
 
-	/**
-	 * Is IP address in CIDR block?
-	 */
-	public static function ipMatch($ip, $mask): bool
-	{
-		[$mask, $size] = explode('/', $mask . '/');
-		$tmp = function ($n) {
-			return sprintf('%032b', $n);
-		};
-		$ip = implode('', array_map($tmp, unpack('N*', inet_pton($ip))));
-		$mask = implode('', array_map($tmp, unpack('N*', inet_pton($mask))));
-		$max = strlen($ip);
-		if (!$max || $max !== strlen($mask) || (int) $size < 0 || (int) $size > $max) {
-			return false;
-		}
-
-		return strncmp($ip, $mask, $size === '' ? $max : (int) $size) === 0;
-	}
-
-
-	/**
-	 * Removes duplicate cookies from response.
-	 *
-	 * @internal
-	 */
-	public static function removeDuplicateCookies(): void
-	{
-		if (headers_sent($file, $line) || ini_get('suhosin.cookie.encrypt')) {
-			return;
-		}
-
-		$flatten = [];
-		foreach (headers_list() as $header) {
-			if (preg_match('#^Set-Cookie: .+?=#', $header, $m)) {
-				$flatten[$m[0]] = $header;
-				header_remove('Set-Cookie');
-			}
-		}
-		foreach (array_values($flatten) as $key => $header) {
-			header($header, $key === 0);
-		}
-	}
-
-	/**
-	 * @param array       $vars
-	 * @param string      $type
-	 * @param string|null $key
-	 *
-	 * @return array|FileUpload|mixed|null|string
-	 */
-	public static function getParam(array &$vars, string $type, string $key = null)
-	{
-		if (empty($GLOBALS[$type])) {
-			return $key === null ? [] : null;
-		} elseif ($key === null) {
-			foreach ($GLOBALS[$type] as $k => $v) {
-				static::getParam($vars, $type, $k);
-			}
-
-			return $vars;
-		} elseif (isset($vars[$key])) {
-			return $vars[$key];
-		} elseif (
-			!empty(static::$cached[$type][$type]) &&
-			array_key_exists($key, static::$cached[$type][$type])
-		) {
-			return static::$cached[$type][$key];
-		} elseif (static::keyCheck($key)) {
-			return self::$cached[$type][$key] = null;
-		} elseif ($type === '_FILES') {
-			if (($file = static::getFile($GLOBALS[$type][$key])) === null) {
-				return self::$cached[$type][$key] = null;
-			}
-
-			return $vars[$key] = $file;
-		} else {
-			$pos = strpos($key, '.');
-			$first = $pos === false ? $key : substr($key, 0, $pos);
-			if (!isset($GLOBALS[$type][$first])) {
-				return self::$cached[$type][$key] = null;
-			}
-
-			$val = $vars[$first] = $GLOBALS[$type][$first];
-			if ($pos !== false) {
-				$val = Arrays::get($vars[$first], substr($key, $pos + 1));
-			}
-			$val = static::valueCheck($val);
-
-			return self::$cached[$type][$key] = $val;
-		}
-	}
-
-	/**
-	 * @param string $k
-	 *
-	 * @return bool
-	 */
-	public static function keyCheck($k)
-	{
-		return is_string($k) && (!preg_match(static::KEY_CHARS, $k) || preg_last_error());
-	}
-
-	/**
-	 * @param array|string $val
-	 *
-	 * @return array|string
-	 */
-	public static function valueCheck($val)
-	{
-		if ($val === null) {
-			return null;
-		} elseif (is_array($val)) {
-			foreach ($val as $k => $v) {
-				if (static::keyCheck($k)) {
-					unset($val[$k]);
-				} else {
-					$val[$k] = static::valueCheck($v);
+		foreach ($server as $key => $value) {
+			if (strpos($key, 'HTTP_') === 0) {
+				$key = substr($key, 5);
+				if (!isset($serverMap[$key], $server[$key])) {
+					$key = self::normalizeHeaderName($key);
+					$headers[$key] = $value;
 				}
+			} elseif (isset($serverMap[$key])) {
+				$headers[$serverMap[$key]] = $value;
 			}
-
-			return $val;
 		}
 
-		return (string) preg_replace(static::VAL_CHARS, '', $val);
+		if (!isset($headers['Authorization'])) {
+			if (isset($server['REDIRECT_HTTP_AUTHORIZATION'])) {
+				$headers['Authorization'] = $server['REDIRECT_HTTP_AUTHORIZATION'];
+			} elseif (isset($server['PHP_AUTH_USER'])) {
+				$headers['Authorization'] = 'Basic ' . base64_encode($server['PHP_AUTH_USER'] . ':' . $server['PHP_AUTH_PW'] ?? '');
+			} elseif (isset($server['PHP_AUTH_DIGEST'])) {
+				$headers['Authorization'] = $server['PHP_AUTH_DIGEST'];
+			}
+		}
+
+		return $headers;
 	}
 
 	/**
-	 * @param array $v
+	 * Parse a cookie header according to RFC 6265.
 	 *
-	 * @return array|FileUpload|null
+	 * PHP will replace special characters in cookie names, which results in other cookies not being available due to
+	 * overwriting. Thus, the server request should take the cookies from the request header instead.
+	 *
+	 * @param string $cookieHeader
+	 *
+	 * @return array
 	 */
-	public static function getFile($v)
+	public static function parseCookieHeader(string $cookieHeader)
 	{
-		if (is_array($v['name'])) {
-			$list = [];
-			foreach ($v['name'] as $k => $foo) {
-				if (!is_numeric($k) && static::keyCheck($k)) {
-					continue;
-				}
+		preg_match_all('(
+            (?:^\\n?[ \t]*|;[ ])
+            (?P<name>[!#$%&\'*+-.0-9A-Z^_`a-z|~]+)
+            =
+            (?P<DQUOTE>"?)
+                (?P<value>[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*)
+            (?P=DQUOTE)
+            (?=\\n?[ \t]*$|;[ ])
+        )x', $cookieHeader, $matches, PREG_SET_ORDER);
 
-				$file = static::getFile([
-					'name' => $v['name'][$k],
-					'type' => $v['type'][$k],
-					'size' => $v['size'][$k],
-					'tmp_name' => $v['tmp_name'][$k],
-					'error' => $v['error'][$k],
-				]);
+		$cookies = [];
 
-				if (null === $file) {
-					continue;
-				}
-
-				$list[] = $file;
-			}
-
-			return $list;
-		} elseif (isset($v['name'])) {
-			if (static::keyCheck($v['name'])) {
-				$v['name'] = '';
-			}
-			if ($v['error'] !== UPLOAD_ERR_NO_FILE) {
-				return new FileUpload($v);
-			}
+		foreach ($matches as $match) {
+			$cookies[$match['name']] = urldecode($match['value']);
 		}
 
-		return null;
+		return $cookies;
 	}
 
 	/**
-	 * Converts to web safe characters [a-z0-9-] text.
+	 * Trims whitespace from the header values.
 	 *
-	 * @param  string $s        UTF-8 encoding
-	 * @param  string $charlist allowed characters
-	 * @param  bool   $lower
+	 * Spaces and tabs ought to be excluded by parsers when extracting the field value from a header field.
+	 *
+	 * header-field = field-name ":" OWS field-value OWS
+	 * OWS          = *( SP / HTAB )
+	 *
+	 * @param string[] $values Header values
+	 *
+	 * @return string[] Trimmed header values
+	 *
+	 * @see https://tools.ietf.org/html/rfc7230#section-3.2.4
+	 */
+	public static function trimHeaderValues(array $values): array
+	{
+		foreach ($values as &$v) {
+			$v = trim($v, " \t");
+		}
+
+		return $values;
+	}
+
+	/**
+	 * Create a URI string from its various parts.
+	 *
+	 * @param string $scheme
+	 * @param string $authority
+	 * @param string $path
+	 * @param string $query
+	 * @param string $fragment
 	 *
 	 * @return string
 	 */
-	public static function webalize($s, $charlist = null, $lower = true)
+	public static function createUriString(string $scheme, string $authority, string $path, string $query, string $fragment): string
 	{
-		$s = static::toAscii($s);
-		if ($lower) {
-			$s = strtolower($s);
-		}
-		$s = preg_replace('#[^a-z0-9' . preg_quote($charlist, '#') . ']+#i', '-', $s);
-		$s = trim($s, '-');
+		$uri = '';
 
-		return $s;
+		if ($scheme !== '') {
+			$uri .= $scheme . ':';
+		}
+
+		if ($authority !== '') {
+			$uri .= '//' . $authority;
+		}
+
+		if ($path !== '') {
+			if ($path[0] !== '/') {
+				if ($authority !== '') {
+					// If the path is rootless and an authority is present, the path MUST be prefixed by "/"
+					$path = '/' . $path;
+				}
+			} elseif (isset($path[1]) && $path[1] === '/') {
+				if ($authority === '') {
+					// If the path is starting with more than one "/" and no authority is present, the
+					// starting slashes MUST be reduced to one.
+					$path = '/' . ltrim($path, '/');
+				}
+			}
+
+			$uri .= $path;
+		}
+
+		if ($query !== '') {
+			$uri .= '?' . $query;
+		}
+
+		if ($fragment !== '') {
+			$uri .= '#' . $fragment;
+		}
+
+		return $uri;
 	}
 
 	/**
-	 * Converts to ASCII.
+	 * Get method from server variables.
 	 *
-	 * @param  string  UTF-8 encoding
+	 * @param array $server Typically $_SERVER or similar structure.
 	 *
-	 * @return string  ASCII
+	 * @return string
 	 */
-	public static function toAscii($s)
+	public static function getMethod(array $server): string
 	{
-		$s = preg_replace('#[^\x09\x0A\x0D\x20-\x7E\xA0-\x{2FF}\x{370}-\x{10FFFF}]#u', '', $s);
-		$s = strtr($s, '`\'"^~?', "\x01\x02\x03\x04\x05\x06");
-		$s = str_replace(
-			["\xE2\x80\x9E", "\xE2\x80\x9C", "\xE2\x80\x9D", "\xE2\x80\x9A", "\xE2\x80\x98", "\xE2\x80\x99", "\xC2\xB0"],
-			["\x03", "\x03", "\x03", "\x02", "\x02", "\x02", "\x04"], $s
-		);
-		if (class_exists('Transliterator', false) && $transliterator = \Transliterator::create('Any-Latin; Latin-ASCII')) {
-			$s = $transliterator->transliterate($s);
+		$method = $server['REQUEST_METHOD'] ?? 'GET';
+		if ($method === 'POST' &&
+			isset(
+				$server['HTTP_X_HTTP_METHOD_OVERRIDE'],
+				self::$methods[$server['HTTP_X_HTTP_METHOD_OVERRIDE']]
+			)
+		) {
+			$method = $server['HTTP_X_HTTP_METHOD_OVERRIDE'];
 		}
-		if (ICONV_IMPL === 'glibc') {
-			$s = str_replace(
-				["\xC2\xBB", "\xC2\xAB", "\xE2\x80\xA6", "\xE2\x84\xA2", "\xC2\xA9", "\xC2\xAE"],
-				['>>', '<<', '...', 'TM', '(c)', '(R)'], $s
-			);
-			$s = @iconv('UTF-8', 'WINDOWS-1250//TRANSLIT//IGNORE', $s); // intentionally @
-			$s = strtr($s, "\xa5\xa3\xbc\x8c\xa7\x8a\xaa\x8d\x8f\x8e\xaf\xb9\xb3\xbe\x9c\x9a\xba\x9d\x9f\x9e"
-				. "\xbf\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3"
-				. "\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8"
-				. "\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf8\xf9\xfa\xfb\xfc\xfd\xfe"
-				. "\x96\xa0\x8b\x97\x9b\xa6\xad\xb7",
-				"ALLSSSSTZZZallssstzzzRAAAALCCCEEEEIIDDNNOOOOxRUUUUYTsraaaalccceeeeiiddnnooooruuuuyt- <->|-.");
-			$s = preg_replace('#[^\x00-\x7F]++#', '', $s);
-		} else {
-			$s = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s); // intentionally @
-		}
-		$s = str_replace(['`', "'", '"', '^', '~', '?'], '', $s);
 
-		return strtr($s, "\x01\x02\x03\x04\x05\x06", '`\'"^~?');
+		return $method;
+	}
+
+	/**
+	 * Get protocol from server variables.
+	 *
+	 * @param array $server Typically $_SERVER or similar structure.
+	 *
+	 * @return string
+	 */
+	public static function getProtocol(array $server): string
+	{
+		if (!isset($server['SERVER_PROTOCOL'])) {
+			return '1.1';
+		}
+
+		if (!preg_match('#^(HTTP/)?(?P<version>[1-9]\d*(?:\.\d)?)$#', $server['SERVER_PROTOCOL'], $matches)) {
+			throw new \UnexpectedValueException("Unrecognized protocol version ({$server['SERVER_PROTOCOL']})");
+		}
+
+		return $matches['version'];
+	}
+
+	/**
+	 * Copy the contents of a stream into another stream until the given number
+	 * of bytes have been read.
+	 *
+	 * @author Michael Dowling and contributors to guzzlehttp/psr7
+	 *
+	 * @param StreamInterface $source Stream to read from
+	 * @param StreamInterface $dest   Stream to write to
+	 * @param int             $maxLen Maximum number of bytes to read. Pass -1
+	 *                                to read the entire stream
+	 *
+	 * @throws \RuntimeException on error
+	 */
+	public static function copyToStream(StreamInterface $source, StreamInterface $dest, $maxLen = -1)
+	{
+		if ($maxLen === -1) {
+			while (!$source->eof()) {
+				if (!$dest->write($source->read(1048576))) {
+					break;
+				}
+			}
+
+			return;
+		}
+
+		$bytes = 0;
+		while (!$source->eof()) {
+			$buf = $source->read($maxLen - $bytes);
+			if (!($len = strlen($buf))) {
+				break;
+			}
+			$bytes += $len;
+			$dest->write($buf);
+			if ($bytes === $maxLen) {
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Add or remove the Content-Length header
+	 * Used by middlewares that modify the body content
+	 *
+	 * @param MessageInterface $response
+	 *
+	 * @return MessageInterface
+	 */
+	public static function fixContentLength(MessageInterface $response): MessageInterface
+	{
+		$size = $response->getBody()->getSize();
+		if ($size !== null) {
+			return $response->withHeader('Content-Length', (string) $size);
+		}
+
+		return $response->withoutHeader('Content-Length');
+	}
+
+	/**
+	 * Inject the provided Content-Type, if none is already present.
+	 *
+	 * @param string $contentType
+	 * @param array  $headers
+	 *
+	 * @return array Headers with injected Content-Type
+	 */
+	public static function injectContentType(string $contentType, array $headers)
+	{
+		foreach ($headers as $k => $v) {
+			if (strtolower($k) === 'content-type') {
+				return $headers;
+			}
+		}
+
+		$headers['Content-Type'] = [$contentType];
+
+		return $headers;
+	}
+
+	/**
+	 * Marshal the host and port from HTTP headers and/or the PHP environment
+	 *
+	 * @param array $server
+	 *
+	 * @return array
+	 */
+	public static function getHostAndPortFromArray(array $server): array
+	{
+		if (isset($server['HTTP_HOST'])) {
+			return self::getHostAndPortFromHost($server['HTTP_HOST']);
+		}
+
+		if (!isset($server['SERVER_NAME'])) {
+			return ['', null];
+		}
+
+		$host = $server['SERVER_NAME'];
+		$port = null;
+		if (isset($server['SERVER_PORT'])) {
+			$port = (int) $server['SERVER_PORT'];
+		}
+
+		// Misinterpreted IPv6-Address
+		// Reported for Safari on Windows
+		if (isset($server['SERVER_ADDR']) && preg_match('/^\[[0-9a-fA-F\:]+\]$/', $host)) {
+			$host = '[' . $server['SERVER_ADDR'] . ']';
+			$port = $port ?: 80;
+			if ($port . ']' === substr($host, strrpos($host, ':') + 1)) {
+				// The last digit of the IPv6-Address has been taken as port
+				// Unset the port so the default port can be used
+				$port = null;
+			}
+		}
+
+		return [$host, $port];
+	}
+
+	/**
+	 * Marshal the host and port from the request header
+	 *
+	 * @param string|array $host
+	 *
+	 * @return array
+	 */
+	private static function getHostAndPortFromHost($host): array
+	{
+		if (is_array($host)) {
+			$host = implode(', ', $host);
+		}
+
+		$port = null;
+
+		// works for regname, IPv4 & IPv6
+		if (preg_match('|\:(\d+)$|', $host, $matches)) {
+			$host = substr($host, 0, -1 * (strlen($matches[1]) + 1));
+			$port = (int) $matches[1];
+		}
+
+		return [$host, $port];
+	}
+
+	/**
+	 * Detect the base URI for the request
+	 *
+	 * Looks at a variety of criteria in order to attempt to autodetect a base
+	 * URI, including rewrite URIs, proxy URIs, etc.
+	 *
+	 * From ZF2's Zend\Http\PhpEnvironment\Request class
+	 *
+	 * @copyright Copyright (c) 2005-2015 Zend Technologies USA Inc. (http://www.zend.com)
+	 * @license   http://framework.zend.com/license/new-bsd New BSD License
+	 *
+	 * @param array $server
+	 *
+	 * @return string
+	 */
+	public static function getRequestUri(array $server)
+	{
+		// IIS7 with URL Rewrite: make sure we get the unencoded url
+		// (double slash problem).
+		$iisUrlRewritten = $server['IIS_WasUrlRewritten'] ?? null;
+		$unencodedUrl = $server['UNENCODED_URL'] ?? null;
+		if ('1' === $iisUrlRewritten && !empty($unencodedUrl)) {
+			return $unencodedUrl;
+		}
+
+		$requestUri = $server['REQUEST_URI'] ?? null;
+
+		// Check this first so IIS will catch.
+		$httpXRewriteUrl = $server['HTTP_X_REWRITE_URL'] ?? null;
+		if ($httpXRewriteUrl !== null) {
+			$requestUri = $httpXRewriteUrl;
+		}
+
+		// Check for IIS 7.0 or later with ISAPI_Rewrite
+		$httpXOriginalUrl = $server['HTTP_X_ORIGINAL_URL'] ?? null;
+		if ($httpXOriginalUrl !== null) {
+			$requestUri = $httpXOriginalUrl;
+		}
+
+		if ($requestUri !== null) {
+			return preg_replace('#^[^/:]+://[^/]+#', '', $requestUri);
+		}
+
+		$origPathInfo = $server['ORIG_PATH_INFO'] ?? null;
+		if (empty($origPathInfo)) {
+			return '/';
+		}
+
+		return $origPathInfo;
+	}
+
+	/**
+	 * @param array $server
+	 * @param array $cookies
+	 *
+	 * @return ServerRequest
+	 */
+	public static function serverRequestFromArray(array $server, array $cookies = null): ServerRequest
+	{
+		$method = self::getMethod($server);
+		$headers = self::getHeaders($server);
+
+		if (!isset($server['HTTPS'])) {
+			$server['HTTPS'] = 'off';
+		}
+
+		if (
+			$server['HTTPS'] === 'off' &&
+			isset($headers['X-Forwarded-Proto']) &&
+			$headers['X-Forwarded-Proto'] === 'https'
+		) {
+			$server['HTTPS'] = 'on';
+		}
+
+		$uri = Uri::fromArray($server);
+
+		$protocol = self::getProtocol($server);
+
+		if ($cookies === null && isset($headers['Cookie'])) {
+			$cookies = self::parseCookieHeader($headers['Cookie']);
+		}
+
+		return new ServerRequest($method, $uri, $headers, null, $protocol, $server, $cookies ?? []);
+	}
+
+	/**
+	 * Is AJAX request?
+	 *
+	 * @param MessageInterface $request
+	 *
+	 * @return bool
+	 */
+	public static function isAjax(MessageInterface $request): bool
+	{
+		return $request->getHeaderLine('X-Requested-With') === 'XMLHttpRequest';
+	}
+
+	/**
+	 * Determine if the request is the result of an PJAX call.
+	 *
+	 * @param MessageInterface $request
+	 *
+	 * @return bool
+	 */
+	public static function isPjax(MessageInterface $request): bool
+	{
+		return $request->getHeaderLine('X-PJAX') === 'true';
+	}
+
+	/**
+	 * Determine if the request is sending JSON.
+	 *
+	 * @param MessageInterface $request
+	 *
+	 * @return bool
+	 */
+	public static function isJson(MessageInterface $request): bool
+	{
+		return Strings::contains(
+			$request->getHeaderLine('Content-Type') ?? '', ['/json', '+json']
+		);
+	}
+
+	/**
+	 * Determine if the current request probably expects a JSON response.
+	 *
+	 * @param MessageInterface $request
+	 *
+	 * @return bool
+	 */
+	public static function expectsJson(MessageInterface $request): bool
+	{
+		return (static::isAjax($request) && !static::isPjax($request)) || static::wantsJson($request);
+	}
+
+	/**
+	 * Determine if the current request is asking for JSON in return.
+	 *
+	 * @param MessageInterface $request
+	 *
+	 * @return bool
+	 */
+	public static function wantsJson(MessageInterface $request): bool
+	{
+		$acceptable = $request->getHeaderLine('Accept');
+
+		return $acceptable !== null && Strings::contains($acceptable, ['/json', '+json']);
 	}
 }

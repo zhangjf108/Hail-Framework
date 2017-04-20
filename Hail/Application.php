@@ -1,111 +1,66 @@
 <?php
 namespace Hail;
 
-use Hail\Exception\{
-	ApplicationException,
-	BadRequestException
-};
-use Hail\Tracy\Debugger;
-use Hail\Facades\{
-	Event,
-	Router,
-	Request,
-	Response,
-	Output
-};
+use Hail\Container\Container;
+use Hail\Http\Emitter\Sapi;
 
-/**
- * Front Controller.
- *
- */
 class Application
 {
-	private $dispatcher = [];
+	/**
+	 * @var Container
+	 */
+	private $container;
 
-	public function run()
+	/**
+	 * Application constructor.
+	 *
+	 * @param Container $container
+	 */
+	public function __construct(Container $container)
 	{
-		try {
-			Event::trigger('app.start');
-			$this->process();
-			Event::trigger('app.end');
-		} catch (\Exception $e) {
-			Event::trigger('app.error');
-			$this->processException($e);
-		} finally {
-			Event::trigger('app.shutdown');
-		}
-	}
-
-	private function process()
-	{
-		$method = Request::getMethod();
-		$result = Router::dispatch(
-			$method,
-			Request::getPathInfo()
-		);
-
-		if (isset($result['error'])) {
-			throw new BadRequestException('Router Error', $result['error']);
-		}
-
-		$app = $result['handler']['app'] ?? '';
-		$controller = $result['handler']['controller'] ?? '';
-		$action = $result['handler']['action'] ?? '';
-
-		$dispatcher = $this->getDispatcher($app);
-		$dispatcher->run($method, $controller, $action, $result['params']);
+		$this->container = $container;
 	}
 
 	/**
-	 * @param string $app
+	 * @param string $name
 	 *
-	 * @return Dispatcher
-	 * @throws BadRequestException
+	 * @return mixed
 	 */
-	public function getDispatcher($app)
+	public function get(string $name)
 	{
-		if (!isset($this->dispatcher[$app])) {
-			return $this->dispatcher[$app] = new Dispatcher($app);
-		}
-
-		return $this->dispatcher[$app];
+		return $this->container->get($name);
 	}
 
-	protected function processException(\Exception $e)
+	public function run()
 	{
-		if (!$e instanceof ApplicationException) {
-			throw $e;
+		$response = $this->get('http.dispatcher')->dispatch(
+			$this->get('http.request')
+		);
+
+		(new Sapi())->emit($response);
+	}
+
+	/**
+	 * @param string      $root
+	 * @param string|null $path
+	 *
+	 * @return string
+	 */
+	public static function path(string $root, string $path = null): string
+	{
+		if ($path === null || $path === '') {
+			return $root;
 		}
 
-		$code = 500;
-		$isBadRequest = $e instanceof BadRequestException;
-		if ($isBadRequest) {
-			$code = $e->getCode() ?: 404;
-		} else {
-			Response::disableWarnOnBuffer();
+		if (strpos($path, '..') !== false) {
+			throw new \InvalidArgumentException('Unable to get a directory higher than ROOT');
 		}
 
-		if (!Response::isSent()) {
-			Response::setCode($code);
+		$path = str_replace('\\', '/', $path);
+		if ($path[0] === '/') {
+			$path = ltrim($path, '/');
 		}
 
-		$msg = [
-			403 => 'Access Denied',
-			404 => 'Not Found',
-			405 => 'Method Not Allowed',
-			410 => 'Gone',
-			500 => 'Server Error',
-		];
-
-		$msg = $msg[$code] ?? $e->getMessage();
-
-		Output::json()->send([
-			'ret' => $code,
-			'msg' => $msg,
-		]);
-
-		if (!$isBadRequest) {
-			Debugger::log($e, Debugger::EXCEPTION);
-		}
+		return realpath($root . $path) ?: $root . $path;
 	}
 }

@@ -1,0 +1,14 @@
+simple:
+  namespace: hail_data
+
+  drivers:
+    yac:
+      ttl: 86400
+    redis:
+      ttl: 604800
+
+pool:
+  driver: simple # hierarchical, namespaced support to use redis
+
+  config: [] # for init simple cache
+  namespace: "" # for NamespacedCachePool

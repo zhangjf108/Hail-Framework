@@ -1,6 +1,9 @@
 <?php
 namespace Hail\Tracy\Bar;
 
+use Hail\Facade\{
+    DI, Router
+};
 use Hail\Tracy\Dumper;
 
 /**
@@ -36,7 +39,7 @@ class RoutePanel implements PanelInterface
 	{
 		ob_start(function () {});
 		$router = $this->router;
-		$url = (string) \Request::getUrl();
+		$url = (string) DI::get('http.request')->getUri();
 		$sorted = array(
 			'matched', 'url', 'error', 'allowed', 'route', 'params', 'handler'
 		);
@@ -47,7 +50,7 @@ class RoutePanel implements PanelInterface
 
 	private function getRouteResult()
 	{
-		$result = \Router::getResult();
+		$result = Router::getResult();
 		if (isset($result['error'])) {
 			if ($result['error']['code'] === 404) {
 				$result['matched'] = 'no';
