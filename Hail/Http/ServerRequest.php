@@ -13,8 +13,6 @@ use Psr\Http\Message\{
 };
 
 /**
- * @property-read Input $input
- *
  * @author Michael Dowling and contributors to guzzlehttp/psr7
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -77,48 +75,6 @@ class ServerRequest extends Request implements ServerRequestInterface
 		}
 
 		parent::__construct($method, $uri, $headers, $body, $version);
-	}
-
-	public function __get($name)
-	{
-		if ($name === 'input') {
-			return $this->input = new Input($this);
-		}
-
-		throw new \InvalidArgumentException('Property not defined: ' . $name);
-	}
-
-	/**
-	 * @param array|null $values
-	 *
-	 * @return array
-	 */
-	public function inputs(array $values = null): array
-	{
-		if ($values === null) {
-			return $this->input->getAll();
-		}
-
-		$this->input->setAll($values);
-
-		return $values;
-	}
-
-	/**
-	 * @param string $name
-	 * @param mixed  $value
-	 *
-	 * @return mixed
-	 */
-	public function input(string $name, $value = null)
-	{
-		if ($value === null) {
-			return $this->input->get($name);
-		}
-
-		$this->input->set($name, $value);
-
-		return $value;
 	}
 
 	/**
@@ -292,7 +248,7 @@ class ServerRequest extends Request implements ServerRequestInterface
 
 	public function getAttribute($attribute, $default = null)
 	{
-		if (isset($this->attributes[$attribute]) || array_key_exists($attribute, $this->attributes)) {
+		if (isset($this->attributes[$attribute])) {
 			return $this->attributes[$attribute];
 		}
 

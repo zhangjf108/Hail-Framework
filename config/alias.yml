@@ -16,8 +16,6 @@ I18N: Hail\Facade\I18N
 Library: Hail\Facade\Library
 Model: Hail\Facade\Model
 Output: Hail\Facade\Output
-Request: Hail\Facade\Request
-Response: Hail\Facade\Response
 Router: Hail\Facade\Router
 Serialize: Hail\Facade\Serialize
 Session: Hail\Facade\Session
