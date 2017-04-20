@@ -102,6 +102,22 @@ abstract class AbstractAdapter implements CacheInterface
 		return $this->namespace;
 	}
 
+	/**
+	 * Add namespace prefix on the key.
+	 *
+	 * @param string $key
+	 */
+	protected function prefixValue(&$key)
+	{
+		if (null === ($version = $this->namespaceVersion)) {
+			$version = $this->getNamespaceVersion();
+		}
+
+		// namespace#[version]#key
+		$key = $this->namespace . static::SEPARATOR .
+			$version . static::SEPARATOR . $key;
+	}
+
 	protected function convertTtl($ttl)
 	{
 		if ($ttl === null) {
@@ -155,14 +171,20 @@ abstract class AbstractAdapter implements CacheInterface
 	 */
 	public function get($key, $default = null)
 	{
-		[$found, $value] = $this->doGet($this->getNamespacedKey($key)) ?? [false, null];
+		$this->validateKey($key);
+		$this->namespace && $this->prefixValue($key);
+
+		[$found, $value] = $this->doGet($key) ?? [false, null];
 
 		return $found === true ? $value : $default;
 	}
 
 	public function getDirectValue(string $key)
 	{
-		return $this->doGet($this->getNamespacedKey($key)) ?? [false, null, [], null];
+		$this->validateKey($key);
+		$this->namespace && $this->prefixValue($key);
+
+		return $this->doGet($key) ?? [false, null, [], null];
 	}
 
 	/**
@@ -181,7 +203,12 @@ abstract class AbstractAdapter implements CacheInterface
 		}
 
 		// note: the array_combine() is in place to keep an association between our $keys and the $namespacedKeys
-		$namespacedKeys = array_combine($keys, array_map([$this, 'getNamespacedKey'], $keys));
+		array_walk($keys, [$this, 'validateKey']);
+
+		$prefixed = $keys;
+		$this->namespace && array_walk($prefixed, [$this, 'prefixValue']);
+
+		$namespacedKeys = array_combine($keys, $prefixed);
 		$items = $this->doGetMultiple($namespacedKeys);
 
 		$return = [];
@@ -204,9 +231,10 @@ abstract class AbstractAdapter implements CacheInterface
 	 */
 	public function has($key)
 	{
-		return $this->doHas(
-			$this->getNamespacedKey($key)
-		);
+		$this->validateKey($key);
+		$this->namespace && $this->prefixValue($key);
+
+		return $this->doHas($key);
 	}
 
 	/**
@@ -224,7 +252,10 @@ abstract class AbstractAdapter implements CacheInterface
 
 		$namespacedValues = [];
 		foreach ($values as $key => $value) {
-			$namespacedValues[$this->getNamespacedKey($key)] = [true, $value, $expireTime];
+			$this->validateKey($key);
+			$this->namespace && $this->prefixValue($key);
+
+			$namespacedValues[$key] = [true, $value, [], $expireTime];
 		}
 
 		return $this->doSetMultiple($namespacedValues, $ttl);
@@ -247,18 +278,19 @@ abstract class AbstractAdapter implements CacheInterface
 	{
 		[$ttl, $expireTime] = $this->ttl($ttl);
 
-		return $this->doSet(
-			$this->getNamespacedKey($key), [true, $value, [], $expireTime], $ttl
-		);
+		$this->validateKey($key);
+		$this->namespace && $this->prefixValue($key);
+
+		return $this->doSet($key, [true, $value, [], $expireTime], $ttl);
 	}
 
 	public function setDirectValue(string $key, $value, array $tags = [], int $expireTime = null)
 	{
-		return $this->doSet(
-			$this->getNamespacedKey($key),
-			[true, $value, $tags, $expireTime],
-			$this->expireToTtl($expireTime)
-		);
+		$this->validateKey($key);
+		$this->namespace && $this->prefixValue($key);
+		$ttl = $this->expireToTtl($expireTime);
+
+		return $this->doSet($key, [true, $value, $tags, $expireTime], $ttl);
 	}
 
 	/**
@@ -271,9 +303,10 @@ abstract class AbstractAdapter implements CacheInterface
 	 */
 	public function delete($key)
 	{
-		return $this->doDelete(
-			$this->getNamespacedKey($key)
-		);
+		$this->validateKey($key);
+		$this->namespace && $this->prefixValue($key);
+
+		return $this->doDelete($key);
 	}
 
 	/**
@@ -285,7 +318,10 @@ abstract class AbstractAdapter implements CacheInterface
 	 */
 	public function deleteMultiple($keys)
 	{
-		return $this->doDeleteMultiple(array_map([$this, 'getNamespacedKey'], $keys));
+		array_walk($keys, [$this, 'validateKey']);
+		$this->namespace && array_walk($prefixed, [$this, 'prefixValue']);
+
+		return $this->doDeleteMultiple($keys);
 	}
 
 	/**
@@ -312,7 +348,7 @@ abstract class AbstractAdapter implements CacheInterface
 		$namespaceCacheKey = $this->getNamespaceCacheKey();
 		$namespaceVersion = $this->getNamespaceVersion() + 1;
 
-		if ($this->doSet($namespaceCacheKey, [true, $namespaceVersion, 0])) {
+		if ($this->doSet($namespaceCacheKey, [true, $namespaceVersion, [], 0])) {
 			$this->namespaceVersion = $namespaceVersion;
 
 			return true;
@@ -321,32 +357,12 @@ abstract class AbstractAdapter implements CacheInterface
 		return false;
 	}
 
-	/**
-	 * Prefixes the passed id with the configured namespace value.
-	 *
-	 * @param string $key The id to namespace.
-	 *
-	 * @return string The namespaced id.
-	 * @throws InvalidArgumentException
-	 */
-	protected function getNamespacedKey(string $key): string
+	protected function validateKey(string $key)
 	{
 		if (preg_match(self::PSR16_RESERVED, $key, $match) === 1) {
 			throw new InvalidArgumentException("invalid character in key: {$match[0]}");
 		}
-
-		if (!$this->namespace) {
-		    return $key;
-        }
-
-		if (null === ($version = $this->namespaceVersion)) {
-			$version = $this->getNamespaceVersion();
-		}
-
-		return $this->namespace . static::SEPARATOR .
-			$version . static::SEPARATOR . $key;
 	}
-
 
 	/**
 	 * Returns the namespace cache key.

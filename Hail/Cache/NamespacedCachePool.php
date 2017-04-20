@@ -50,16 +50,6 @@ class NamespacedCachePool extends HierarchicalCachePool implements CacheItemPool
     }
 
     /**
-     * @param array $keys
-     */
-    private function prefixValues(array &$keys)
-    {
-        foreach ($keys as &$key) {
-            $this->prefixValue($key);
-        }
-    }
-
-    /**
      * {@inheritdoc}
      */
     public function getItem($key)
@@ -74,7 +64,7 @@ class NamespacedCachePool extends HierarchicalCachePool implements CacheItemPool
      */
     public function getItems(array $keys = [])
     {
-        $this->namespace && $this->prefixValues($keys);
+        $this->namespace && array_walk($keys, [$this, 'prefixValue']);
 
         return parent::getItems($keys);
     }
@@ -114,7 +104,7 @@ class NamespacedCachePool extends HierarchicalCachePool implements CacheItemPool
      */
     public function deleteItems(array $keys)
     {
-        $this->namespace && $this->prefixValues($keys);
+        $this->namespace && array_walk($keys, [$this, 'prefixValue']);
 
         return parent::deleteItems($keys);
     }
