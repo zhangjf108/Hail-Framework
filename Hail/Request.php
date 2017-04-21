@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Hail;
 
-use Hail\Http\Input;
-use Hail\Util\Arrays;
+use Hail\Util\{
+    ArrayDot, Arrays
+};
 use Psr\Http\Message\{
-	ServerRequestInterface, StreamInterface, UploadedFileInterface
+    ServerRequestInterface,
+    UploadedFileInterface,
+    UriInterface
 };
 
 /**
@@ -16,122 +19,215 @@ use Psr\Http\Message\{
  * @package Hail\Http
  *
  * @author  Hao Feng <flyinghail@msn.com>
- *
- * @method string getProtocolVersion()
- * @method array getHeaders()
- * @method array getHeader(string $name)
- * @method string getHeaderLine(string $name)
- * @method StreamInterface getBody()
- * @method bool hasHeader(string $name)
- * @method string getRequestTarget()
- * @method string getMethod()
- * @method string getUri()
- * @method array getServerParams()
- * @method array getCookieParams()
- * @method array getQueryParams()
- * @method array getUploadedFiles()
- * @method array getParsedBody()
- * @method array getAttributes()
- * @method mixed getAttribute(string $name, mixed $default = null)
  */
 class Request
 {
-	/**
-	 * @var ServerRequestInterface
-	 */
-	protected $serverRequest;
+    /**
+     * @var ServerRequestInterface
+     */
+    protected $serverRequest;
 
-	/**
-	 * @var Input
-	 */
-	public $input;
+    /**
+     * @var ArrayDot
+     */
+    protected $input;
 
-	/**
-	 * ServerRequestWrapper constructor.
-	 *
-	 * @param ServerRequestInterface $serverRequest
-	 */
-	public function __construct(ServerRequestInterface $serverRequest)
-	{
-		$this->serverRequest = $serverRequest;
-		$this->input = new Input($serverRequest);
-	}
+    /**
+     * $this->input fill all params?
+     *
+     * @var bool
+     */
+    protected $all = false;
+
+    /**
+     * ServerRequestWrapper constructor.
+     *
+     * @param ServerRequestInterface $serverRequest
+     */
+    public function __construct(ServerRequestInterface $serverRequest)
+    {
+        $this->serverRequest = $serverRequest;
+        $this->input = Arrays::dot();
+    }
 
     /**
      * @param ServerRequestInterface $serverRequest
      */
-	public function setServerRequest(ServerRequestInterface $serverRequest): void
+    public function changeServerRequest(ServerRequestInterface $serverRequest): void
     {
+        if ($this->serverRequest === $serverRequest) {
+            return;
+        }
+
         $this->serverRequest = $serverRequest;
+
+        if ($this->input->all() !== []) {
+            $this->input->replace([]);
+            $this->all = false;
+        }
     }
 
-	public function __call($name, $arguments)
-	{
-		if (strpos($name, 'with') === 0) {
-			throw new \BadMethodCallException('ServerRequestWrapper not support use this method: ' . $name);
-		}
+    /**
+     * @return string
+     */
+    public function protocol(): string
+    {
+        return $this->serverRequest->getProtocolVersion();
+    }
 
-		return $this->serverRequest->$name(...$arguments);
-	}
+    /**
+     * @return string
+     */
+    public function method(): string
+    {
+        return $this->serverRequest->getMethod();
+    }
 
-	/**
-	 * @param array|null $values
-	 *
-	 * @return array
-	 */
-	public function inputs(array $values = null): array
-	{
-		if ($values === null) {
-			return $this->input->getAll();
-		}
+    /**
+     * @return string
+     */
+    public function target(): string
+    {
+        return $this->serverRequest->getRequestTarget();
+    }
 
-		$this->input->setAll($values);
+    /**
+     * @return UriInterface
+     */
+    public function uri(): UriInterface
+    {
+        return $this->serverRequest->getUri();
+    }
 
-		return $values;
-	}
+    /**
+     * @param array|null $values
+     *
+     * @return array
+     */
+    public function inputs(array $values = null): array
+    {
+        if ($values === null) {
+            if (!$this->all) {
+                return $this->input->all();
+            }
 
-	/**
-	 * @param string $name
-	 * @param mixed  $value
-	 *
-	 * @return mixed
-	 */
-	public function input(string $name, $value = null)
-	{
-		if ($value === null) {
-			return $this->input->get($name);
-		}
+            $values = $this->serverRequest->getQueryParams();
+            if ($this->serverRequest->getMethod() !== 'GET') {
+                $values = array_replace_recursive($values,
+                    $this->serverRequest->getParsedBody()
+                );
+            }
+            $this->all = true;
+        }
 
-		$this->input->set($name, $value);
+        return $this->input->replace($values);
+    }
 
-		return $value;
-	}
+    /**
+     * @param string $name
+     * @param mixed  $value
+     *
+     * @return mixed
+     */
+    public function input(string $name, $value = null)
+    {
+        if ($value !== null) {
+            !$this->all && $this->inputs();
+            $this->input->set($name, $value);
 
-	/**
-	 * @return array
-	 */
-	public function files(): array
-	{
-		return $this->serverRequest->getUploadedFiles();
-	}
+            return $value;
+        }
 
-	/**
-	 * @param string $name
-	 *
-	 * @return null|UploadedFileInterface
-	 */
-	public function file(string $name): ?UploadedFileInterface
-	{
-		return Arrays::get($this->serverRequest->getUploadedFiles(), $name);
-	}
+        if ($this->all || $this->input->has($name)) {
+            return $this->input->get($name);
+        }
 
-	/**
-	 * @param string $name
-	 *
-	 * @return null|string
-	 */
-	public function cookie(string $name): ?string
-	{
-		return $this->getCookieParams()[$name] ?? null;
-	}
+        if ($this->serverRequest->getMethod() !== 'GET') {
+            $found = $this->request($name) ?? $this->query($name);
+        } else {
+            $found = $this->query($name);
+        }
+
+        if ($found !== null) {
+            $this->input->set($name, $found);
+        }
+
+        return $found;
+    }
+
+    public function request(string $name = null)
+    {
+        return Arrays::get($this->serverRequest->getParsedBody(), $name);
+    }
+
+    public function query(string $name = null)
+    {
+        return Arrays::get($this->serverRequest->getQueryParams(), $name);
+    }
+
+    /**
+     * @return array
+     */
+    public function files(): array
+    {
+        return $this->serverRequest->getUploadedFiles();
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return null|UploadedFileInterface
+     */
+    public function file(string $name): ?UploadedFileInterface
+    {
+        return Arrays::get($this->serverRequest->getUploadedFiles(), $name);
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return null|string
+     */
+    public function cookie(string $name): ?string
+    {
+        return $this->serverRequest->getCookieParams()[$name] ?? null;
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return null|string
+     */
+    public function server(string $name): ?string
+    {
+        return $this->serverRequest->getServerParams()[$name] ?? null;
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return mixed
+     */
+    public function attribute(string $name)
+    {
+        return $this->serverRequest->getAttribute($name);
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return string
+     */
+    public function header(string $name): string
+    {
+        return $this->serverRequest->getHeaderLine($name);
+    }
+
+    /**
+     * @return bool
+     */
+    public function secure(): bool
+    {
+        return $this->serverRequest->getUri()->getScheme() === 'https';
+    }
 }

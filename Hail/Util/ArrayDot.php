@@ -21,7 +21,7 @@ class ArrayDot implements \ArrayAccess, \Countable, \IteratorAggregate
 	 */
 	public function __construct(array $init = [])
 	{
-		$this->init($init);
+		$this->replace($init);
 	}
 
 	/**
@@ -39,6 +39,11 @@ class ArrayDot implements \ArrayAccess, \Countable, \IteratorAggregate
 	{
 		return count($this->items);
 	}
+
+	public function all()
+    {
+        return $this->items;
+    }
 
 	/**
 	 * Get an item from an array using "dot" notation.
@@ -137,13 +142,26 @@ class ArrayDot implements \ArrayAccess, \Countable, \IteratorAggregate
 	 *
 	 * @return array
 	 */
-	public function init(array $array): array
+	public function replace(array $array): array
 	{
 		$this->items = $array;
 		$this->cache = $array === [] ? [] : self::dot($array);
 
 		return $array;
 	}
+
+    /**
+     * @param array $array
+     */
+	public function add(array $array): void
+    {
+        if ($array === []) {
+            return;
+        }
+
+        $this->items = array_replace_recursive($this->items, $array);
+        $this->cache = array_replace($this->cache, self::dot($array));
+    }
 
 	/**
 	 * Flatten a multi-dimensional associative array with dots.

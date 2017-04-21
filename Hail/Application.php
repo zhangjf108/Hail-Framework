@@ -45,7 +45,7 @@ class Application
 
     public function run()
     {
-        $this->event(HttpEvents::DISPATCHER_NEXT, [$this, 'replaceRequest']);
+        $this->event(HttpEvents::DISPATCHER_NEXT, [$this, 'changeRequest']);
 
         $response = $this->get('http.dispatcher')->dispatch(
             $this->get('http.request')
@@ -54,14 +54,11 @@ class Application
         (new Sapi())->emit($response);
     }
 
-    public function replaceRequest(DispatcherNextEvent $event): void
+    public function changeRequest(DispatcherNextEvent $event): void
     {
-        $request = $event->getRequest();
-
-        if ($this->get('http.request') !== $request) {
-            $this->container->replace('http.request', $request);
-            $this->get('request')->setServerRequest($request);
-        }
+        $this->get('request')->changeServerRequest(
+            $event->getRequest()
+        );
     }
 
     /**
