@@ -3,6 +3,7 @@
 namespace Hail\Http\Middleware;
 
 use Hail\Http\Factory;
+use Hail\Http\Helpers;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\ServerMiddleware\MiddlewareInterface;
@@ -19,6 +20,7 @@ class Payload implements MiddlewareInterface
 	protected $parsers = [
 		'application/json' => ['self', 'jsonParser'],
 		'application/x-www-form-urlencoded' => ['self', 'urlEncodeParser'],
+		'multipart/form-data' => ['self', 'multipartParser'],
 		'text/csv' => ['self', 'csvParser'],
 	];
 
@@ -108,7 +110,15 @@ class Payload implements MiddlewareInterface
 
 			if ($parser !== null) {
 				try {
-					$request = $request->withParsedBody($parser($request->getBody()));
+					$data = $parser($request->getBody(), $contentType);
+
+					if (isset($data['body'])) {
+						$request = $request->withParsedBody($data['body']);
+					}
+
+					if (isset($data['files'])) {
+						$request = $request->withUploadedFiles($data['files']);
+					}
 				} catch (Exception $exception) {
 					return Factory::response(400);
 				}
@@ -129,7 +139,7 @@ class Payload implements MiddlewareInterface
 	{
 		parse_str((string) $stream, $data);
 
-		return $data ?: [];
+		return ['body' => $data ?: []];
 	}
 
 	/**
@@ -152,7 +162,7 @@ class Payload implements MiddlewareInterface
 			throw new \DomainException(json_last_error_msg());
 		}
 
-		return $data ?: [];
+		return ['body' => $data ?: []];
 	}
 
 	/**
@@ -163,7 +173,7 @@ class Payload implements MiddlewareInterface
 	 * @return array
 	 * @throws \RuntimeException
 	 */
-	public static function csvParser(StreamInterface $stream): array
+	protected static function csvParser(StreamInterface $stream): array
 	{
 		if ($stream->isSeekable()) {
 			$stream->rewind();
@@ -176,6 +186,143 @@ class Payload implements MiddlewareInterface
 		}
 		fclose($handle);
 
-		return $data;
+		return ['body' => $data];
+	}
+
+	protected static function multipartParser(StreamInterface $stream, string $contentType): array
+	{
+		$boundary = '--';
+		if (preg_match('/boundary\s*=\s*(.*)$/', $contentType, $matches)) {
+			$boundary .= $matches[1];
+		}
+
+		if ($stream->isSeekable()) {
+			$stream->rewind();
+		}
+
+		$body = $files = [];
+		$prefix = $tail = '';
+		while (true) {
+			$head = '';
+
+			if (!self::findBoundary($stream, $head, "\r\n\r\n", $next, $prefix)) {
+				break;
+			}
+
+			$header = self::parseHeader($head);
+			if (
+				!isset($header['Content-Disposition']) ||
+				$header['Content-Disposition']['value'] !== 'form-data' ||
+				empty($header['Content-Disposition']['options'])
+			) {
+				break;
+			}
+
+			$options = $header['Content-Disposition']['options'];
+
+			$name = $options['name'];
+			$hasFile = isset($options['filename']);
+
+			if ($hasFile) {
+				$filename = tempnam(STORAGE_PATH . 'temp', 'php_upload_');
+				$handle = fopen($filename, 'wb');
+			} else {
+				$handle = '';
+			}
+
+			if (!self::findBoundary($stream, $handle, $boundary, $prefix, $next)) {
+				throw new \LogicException('Error parsing multipart/form-data. No boundary.');
+			}
+
+			if ($hasFile) {
+				$files[$name] = Factory::uploadedFile(
+					$filename,
+					filesize($filename),
+					UPLOAD_ERR_OK,
+					$options['filename'],
+					$header['Content-Type']['value'] ?? null
+				);
+
+				fclose($handle);
+			} else {
+				$body[$name] = rawurldecode($handle);
+			}
+		}
+
+		return [
+			'body' => $body,
+			'files' => $files,
+		];
+	}
+
+	protected static function parseHeader($head): array
+	{
+		$return = [];
+		foreach (explode("\r\n", $head) as $line) {
+			if (trim($line) === '') {
+				break;
+			}
+
+			[$name, $value] = explode(':', $line, 2);
+
+			$name = Helpers::normalizeHeaderName($name);
+			$parts = explode(';', $value);
+			$value = trim(array_shift($parts));
+
+			$options = [];
+			foreach ($parts as $option) {
+				[$k, $v] = explode('=', $option, 2);
+				$options[trim($k)] = trim($v, ' "');
+			}
+
+			$return[$name] = [
+				'value' => $value,
+				'options' => $options
+			];
+		}
+
+		return $return;
+	}
+
+	protected static function findBoundary(StreamInterface $in, &$out, $boundary, &$tail, $prev = '')
+	{
+		$tail = '';
+		$end = true;
+
+		while ($chunk = $in->read(4096)) {
+			$end = false;
+
+			if (self::doFindBoundary($prev, $chunk, $boundary, $out, $tail)) {
+				return true;
+			}
+
+			$prev = $chunk;
+		}
+
+		if ($end) {
+			return self::doFindBoundary($prev, '', $boundary, $out, $tail);
+		}
+
+		return false;
+	}
+
+	protected static function doFindBoundary(string $prev, string $chunk, string $boundary, &$out, &$tail)
+	{
+		$chunk = $prev . $chunk;
+
+		$return = false;
+		if (($pos = strpos($chunk, $boundary)) !== false) {
+			$prev = (string) substr($chunk, 0, $pos);
+			$tail = (string) substr($chunk, $pos + strlen($boundary));
+			$return = true;
+		}
+
+		if (is_resource($out)) {
+			fwrite($out, $prev);
+		} else {
+			$out .= $prev;
+		}
+
+		return $return;
 	}
 }

@@ -104,7 +104,7 @@ class UploadedFile implements UploadedFileInterface
 		if (is_string($streamOrFile)) {
 			$this->file = $streamOrFile;
 		} elseif (is_resource($streamOrFile)) {
-			$this->stream = Stream::createFromResource($streamOrFile);
+			$this->stream = Factory::stream($streamOrFile);
 		} elseif ($streamOrFile instanceof StreamInterface) {
 			$this->stream = $streamOrFile;
 		} else {
@@ -262,9 +262,9 @@ class UploadedFile implements UploadedFileInterface
 		}
 
 		if (null !== $this->file) {
-			$this->moved = PHP_SAPI === 'cli'
-				? rename($this->file, $targetPath)
-				: move_uploaded_file($this->file, $targetPath);
+			$this->moved = is_uploaded_file($this->file) ?
+				move_uploaded_file($this->file, $targetPath) :
+				rename($this->file, $targetPath);
 		} else {
 			$stream = $this->getStream();
 			if ($stream->isSeekable()) {

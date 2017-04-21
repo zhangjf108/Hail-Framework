@@ -33,7 +33,7 @@ class Helpers
 			$header = str_replace('_', '-', $header);
 		}
 
-		return ucwords(strtolower($header), '-');
+		return ucwords(strtolower(trim($header)), '-');
 	}
 
 	public static function getHeaders(array $server = null)
