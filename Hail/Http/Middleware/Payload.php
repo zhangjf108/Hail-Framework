@@ -317,10 +317,10 @@ class Payload implements MiddlewareInterface
 			$return = true;
 		}
 
-		if (is_resource($out)) {
-			fwrite($out, $prev);
-		} else {
+		if (is_string($out)) {
 			$out .= $prev;
+		} else {
+			fwrite($out, $prev);
 		}
 
 		return $return;
