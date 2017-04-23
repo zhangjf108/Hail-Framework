@@ -513,4 +513,25 @@ class Helpers
 
 		return $acceptable !== null && Strings::contains($acceptable, ['/json', '+json']);
 	}
+
+    /**
+     * @param string $value
+     *
+     * @return array
+     */
+	public static function parseHeaderValue(string $value): array
+    {
+        $parts = explode(';', $value);
+        $type = trim(array_shift($parts));
+
+        $parameters = [];
+        foreach ($parts as $part) {
+            [$k, $v] = explode('=', $part, 2);
+
+            $key = strtolower(trim($k));
+            $parameters[$key] = trim($v, ' "');
+        }
+
+        return [$type, $parameters];
+    }
 }

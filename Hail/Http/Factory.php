@@ -36,9 +36,9 @@ final class Factory
 	public static function response(
 		int $statusCode = 200,
 		$body = null,
-		string $reasonPhrase = null,
-		array $headers = [],
-		string $protocolVersion = '1.1'
+        array $headers = [],
+		string $protocolVersion = '1.1',
+        string $reasonPhrase = null
 	): ResponseInterface
 	{
 		return new Response($body, $statusCode, $headers, $protocolVersion, $reasonPhrase);

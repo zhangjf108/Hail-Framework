@@ -220,32 +220,30 @@ class Payload implements MiddlewareInterface
 
 			$options = $header['Content-Disposition']['options'];
 
-			$name = $options['name'];
-			$hasFile = isset($options['filename']);
-
-			if ($hasFile) {
+			if (isset($options['filename'])) {
 				$filename = tempnam(STORAGE_PATH . 'temp', 'php_upload_');
 				$handle = fopen($filename, 'wb');
+
+                if (!self::findBoundary($stream, $handle, $boundary, $prefix, $next)) {
+                    throw new \LogicException('Error parsing multipart/form-data. No boundary.');
+                }
+
+                $files[$options['name']] = Factory::uploadedFile(
+                    $filename,
+                    filesize($filename),
+                    UPLOAD_ERR_OK,
+                    $options['filename'],
+                    $header['Content-Type']['value'] ?? null
+                );
+
+                fclose($handle);
 			} else {
-				$handle = '';
-			}
+                $handle = '';
+                if (!self::findBoundary($stream, $handle, $boundary, $prefix, $next)) {
+                    throw new \LogicException('Error parsing multipart/form-data. No boundary.');
+                }
 
-			if (!self::findBoundary($stream, $handle, $boundary, $prefix, $next)) {
-				throw new \LogicException('Error parsing multipart/form-data. No boundary.');
-			}
-
-			if ($hasFile) {
-				$files[$name] = Factory::uploadedFile(
-					$filename,
-					filesize($filename),
-					UPLOAD_ERR_OK,
-					$options['filename'],
-					$header['Content-Type']['value'] ?? null
-				);
-
-				fclose($handle);
-			} else {
-				$body[$name] = rawurldecode($handle);
+                $body[$options['name']] = rawurldecode($handle);
 			}
 		}
 
@@ -266,14 +264,7 @@ class Payload implements MiddlewareInterface
 			[$name, $value] = explode(':', $line, 2);
 
 			$name = Helpers::normalizeHeaderName($name);
-			$parts = explode(';', $value);
-			$value = trim(array_shift($parts));
-
-			$options = [];
-			foreach ($parts as $option) {
-				[$k, $v] = explode('=', $option, 2);
-				$options[trim($k)] = trim($v, ' "');
-			}
+			[$value, $options] = Helpers::parseHeaderValue($value);
 
 			$return[$name] = [
 				'value' => $value,

@@ -101,6 +101,7 @@ trait MessageTrait
 			$value = [$value];
 		}
 
+        $header = Helpers::normalizeHeaderName($header);
 		$value = Helpers::trimHeaderValues($value);
 		$normalized = strtolower($header);
 
@@ -162,7 +163,9 @@ trait MessageTrait
 				$value = [$value];
 			}
 
+            $header = Helpers::normalizeHeaderName($header);
 			$value = Helpers::trimHeaderValues($value);
+
 			$normalized = strtolower($header);
 			if (isset($this->headerNames[$normalized])) {
 				$header = $this->headerNames[$normalized];
