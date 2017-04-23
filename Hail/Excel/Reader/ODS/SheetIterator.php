@@ -5,6 +5,7 @@ namespace Hail\Excel\Reader\ODS;
 use Hail\Excel\Common\Exception\IOException;
 use Hail\Excel\Reader\Exception\XMLProcessingException;
 use Hail\Excel\Reader\IteratorInterface;
+use Hail\Excel\Reader\ODS\Helper\SettingsHelper;
 use Hail\Excel\Reader\Wrapper\XMLReader;
 
 /**
@@ -24,7 +25,7 @@ class SheetIterator implements IteratorInterface
     /** @var string $filePath Path of the file to be read */
     protected $filePath;
 
-	/** @var \Hail\Excel\Reader\ODS\ReaderOptions Reader's current options */
+    /** @var \Hail\Excel\Reader\ODS\ReaderOptions Reader's current options */
     protected $options;
 
     /** @var XMLReader The XMLReader object that will help read sheet's XML data */
@@ -39,19 +40,26 @@ class SheetIterator implements IteratorInterface
     /** @var int The index of the sheet being read (zero-based) */
     protected $currentSheetIndex;
 
+    /** @var string The name of the sheet that was defined as active */
+    protected $activeSheetName;
+
     /**
-     * @param string $filePath Path of the file to be read
-     * @param \Hail\Excel\Reader\ODS\ReaderOptions $options Reader's current options
+     * @param string                               $filePath Path of the file to be read
+     * @param \Hail\Excel\Reader\ODS\ReaderOptions $options  Reader's current options
+     *
      * @throws \Hail\Excel\Reader\Exception\NoSheetsFoundException If there are no sheets in the file
      */
     public function __construct($filePath, $options)
     {
         $this->filePath = $filePath;
-	    $this->options = $options;
+        $this->options = $options;
         $this->xmlReader = new XMLReader();
 
         /** @noinspection PhpUnnecessaryFullyQualifiedNameInspection */
         $this->escaper = \Hail\Excel\Common\Escaper\ODS::getInstance();
+
+        $settingsHelper = new SettingsHelper();
+        $this->activeSheetName = $settingsHelper->getActiveSheetName($filePath);
     }
 
     /**
@@ -73,8 +81,8 @@ class SheetIterator implements IteratorInterface
         try {
             $this->hasFoundSheet = $this->xmlReader->readUntilNodeFound(self::XML_NODE_TABLE);
         } catch (XMLProcessingException $exception) {
-           throw new IOException("The content.xml file is invalid and cannot be read. [{$exception->getMessage()}]");
-       }
+            throw new IOException("The content.xml file is invalid and cannot be read. [{$exception->getMessage()}]");
+        }
 
         $this->currentSheetIndex = 0;
     }
@@ -116,7 +124,28 @@ class SheetIterator implements IteratorInterface
         $escapedSheetName = $this->xmlReader->getAttribute(self::XML_ATTRIBUTE_TABLE_NAME);
         $sheetName = $this->escaper->unescape($escapedSheetName);
 
-	    return new Sheet($this->xmlReader, $this->currentSheetIndex, $sheetName, $this->options);
+        $isActiveSheet = $this->isActiveSheet($sheetName, $this->currentSheetIndex, $this->activeSheetName);
+
+        return new Sheet($this->xmlReader, $this->currentSheetIndex, $sheetName, $isActiveSheet, $this->options);
+    }
+
+    /**
+     * Returns whether the current sheet was defined as the active one
+     *
+     * @param string      $sheetName  Name of the current sheet
+     * @param int         $sheetIndex Index of the current sheet
+     * @param string|null Name        of the sheet that was defined as active or NULL if none defined
+     *
+     * @return bool Whether the current sheet was defined as the active one
+     */
+    private function isActiveSheet($sheetName, $sheetIndex, $activeSheetName)
+    {
+        // The given sheet is active if its name matches the defined active sheet's name
+        // or if no information about the active sheet was found, it defaults to the first sheet.
+        return (
+            ($activeSheetName === null && $sheetIndex === 0) ||
+            ($activeSheetName === $sheetName)
+        );
     }
 
     /**

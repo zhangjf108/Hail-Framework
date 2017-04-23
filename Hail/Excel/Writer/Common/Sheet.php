@@ -6,7 +6,7 @@ use Hail\Excel\Writer\Exception\InvalidSheetNameException;
 
 /**
  * Class Sheet
- * External representation of a worksheet within a ODS file
+ * External representation of a worksheet
  *
  * @package Hail\Excel\Writer\Common
  */
@@ -20,21 +20,30 @@ class Sheet
     /** @var array Invalid characters that cannot be contained in the sheet name */
     private static $INVALID_CHARACTERS_IN_SHEET_NAME = ['\\', '/', '?', '*', ':', '[', ']'];
 
-    /** @var array Associative array [SHEET_INDEX] => [SHEET_NAME] keeping track of sheets' name to enforce uniqueness */
+    /** @var array Associative array [WORKBOOK_ID] => [[SHEET_INDEX] => [SHEET_NAME]] keeping track of sheets' name to enforce uniqueness */
     protected static $SHEETS_NAME_USED = [];
 
     /** @var int Index of the sheet, based on order in the workbook (zero-based) */
     protected $index;
 
+    /** @var string ID of the sheet's associated workbook. Used to restrict sheet name uniqueness enforcement to a single workbook */
+    protected $associatedWorkbookId;
+
     /** @var string Name of the sheet */
     protected $name;
 
     /**
-     * @param int $sheetIndex Index of the sheet, based on order in the workbook (zero-based)
+     * @param int    $sheetIndex           Index of the sheet, based on order in the workbook (zero-based)
+     * @param string $associatedWorkbookId ID of the sheet's associated workbook
      */
-    public function __construct($sheetIndex)
+    public function __construct($sheetIndex, $associatedWorkbookId)
     {
         $this->index = $sheetIndex;
+        $this->associatedWorkbookId = $associatedWorkbookId;
+        if (!isset(self::$SHEETS_NAME_USED[$associatedWorkbookId])) {
+            self::$SHEETS_NAME_USED[$associatedWorkbookId] = [];
+        }
+
         $this->setName(self::DEFAULT_SHEET_NAME_PREFIX . ($sheetIndex + 1));
     }
 
@@ -64,16 +73,18 @@ class Sheet
      *  - it should be unique
      *
      * @api
+     *
      * @param string $name Name of the sheet
+     *
      * @return Sheet
      * @throws \Hail\Excel\Writer\Exception\InvalidSheetNameException If the sheet's name is invalid.
      */
     public function setName($name)
     {
-	    $this->throwIfNameIsInvalid($name);
+        $this->throwIfNameIsInvalid($name);
 
         $this->name = $name;
-        self::$SHEETS_NAME_USED[$this->index] = $name;
+        self::$SHEETS_NAME_USED[$this->associatedWorkbookId][$this->index] = $name;
 
         return $this;
     }
@@ -83,21 +94,22 @@ class Sheet
      * @see Sheet::setName for validity rules.
      *
      * @param string $name
+     *
      * @return void
      * @throws InvalidSheetNameException If the sheet's name is invalid.
      */
-	protected function throwIfNameIsInvalid($name)
+    protected function throwIfNameIsInvalid($name)
     {
         if (!is_string($name)) {
-	        $actualType = gettype($name);
+            $actualType = gettype($name);
             $errorMessage = "The sheet's name is invalid. It must be a string ($actualType given).";
             throw new InvalidSheetNameException($errorMessage);
         }
 
-	    $failedRequirements = [];
+        $failedRequirements = [];
         $nameLength = mb_strlen($name);
 
-	    if (!$this->isNameUnique($name)) {
+        if (!$this->isNameUnique($name)) {
             $failedRequirements[] = 'It should be unique';
         } else {
             if ($nameLength === 0) {
@@ -129,6 +141,7 @@ class Sheet
      * @see Sheet::$INVALID_CHARACTERS_IN_SHEET_NAME for the full list.
      *
      * @param string $name
+     *
      * @return bool TRUE if the name contains invalid characters, FALSE otherwise.
      */
     protected function doesContainInvalidCharacters($name)
@@ -140,6 +153,7 @@ class Sheet
      * Returns whether the given name starts or ends with a single quote
      *
      * @param string $name
+     *
      * @return bool TRUE if the name starts or ends with a single quote, FALSE otherwise.
      */
     protected function doesStartOrEndWithSingleQuote($name)
@@ -154,11 +168,12 @@ class Sheet
      * Returns whether the given name is unique.
      *
      * @param string $name
+     *
      * @return bool TRUE if the name is unique, FALSE otherwise.
      */
     protected function isNameUnique($name)
     {
-        foreach (self::$SHEETS_NAME_USED as $sheetIndex => $sheetName) {
+        foreach (self::$SHEETS_NAME_USED[$this->associatedWorkbookId] as $sheetIndex => $sheetName) {
             if ($sheetIndex !== $this->index && $sheetName === $name) {
                 return false;
             }
