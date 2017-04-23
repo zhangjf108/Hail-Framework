@@ -2,7 +2,7 @@
 
 namespace Hail\Cache\Simple;
 
-use Hail\Facade\Serialize;
+use Hail\Util\Serialize;
 use Hail\Redis\Client\AbstractClient;
 use Hail\Redis\Exception\RedisException;
 use Hail\Factory\Redis as RedisFactory;

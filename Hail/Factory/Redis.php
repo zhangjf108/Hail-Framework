@@ -8,10 +8,8 @@ use Hail\Redis\Client\{
 	PhpRedis
 };
 use Hail\Redis\Exception\RedisException;
-use Hail\Facade\{
-	Config,
-	Serialize
-};
+use Hail\Util\Serialize;
+use Hail\Facade\Config;
 
 class Redis extends Factory
 {

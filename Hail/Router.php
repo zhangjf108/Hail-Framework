@@ -7,7 +7,7 @@
 namespace Hail;
 
 use Hail\Util\OptimizeTrait;
-use Hail\Facade\Serialize;
+use Hail\Util\Serialize;
 
 /**
  * Class Router

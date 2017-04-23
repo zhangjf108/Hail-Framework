@@ -2,7 +2,7 @@
 namespace Hail\Cache\Simple;
 
 use Hail\Factory\Storage;
-use Hail\Facade\Serialize;
+use Hail\Util\Serialize;
 use Hail\Filesystem\{
 	FilesystemInterface,
 	MountManager

@@ -2,7 +2,7 @@
 namespace Hail\Database;
 
 use InvalidArgumentException;
-use Hail\Facade\Serialize;
+use Hail\Util\Serialize;
 use Hail\Facade\{
 	DB,
 	Cache as SimpleCache

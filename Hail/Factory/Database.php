@@ -2,9 +2,8 @@
 namespace Hail\Factory;
 
 use Hail\Database\Database as DB;
-use Hail\Facade\{
-	Config, Serialize
-};
+use Hail\Util\Serialize;
+use Hail\Facade\Config;
 
 class Database extends Factory
 {

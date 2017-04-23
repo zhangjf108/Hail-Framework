@@ -153,11 +153,9 @@ class Config implements \ArrayAccess
 			if (function_exists('opcache_invalidate')) {
 				opcache_invalidate($cache, true);
 			}
-		} else {
-			$content = require $cache;
 		}
 
-		return $content;
+		return require $cache;
 	}
 
 	protected static function parseArrayToCode(array $array, $level = 0): string
@@ -236,11 +234,25 @@ class Config implements \ArrayAccess
         if (!empty($matches[0])) {
             $replace = [];
             foreach ($matches[0] as $k => $v) {
-                $replace[$v] = '\' . \\' . str_replace('\\\\', '\\', $matches[1][$k]) . ' . \'';
+                $replace[$v] = '\' . ' . str_replace('\\\\', '\\', $matches[1][$k]) . ' . \'';
             }
 
             if ($replace !== []) {
                 $value = strtr($value, $replace);
+
+                $start = 0;
+                if (strpos($value, "'' . ") === 0) {
+                    $start = 5;
+                }
+
+                $end = null;
+                if (strrpos($value, " . ''", 5) > 0) {
+                    $end = -5;
+                }
+
+                if ($start !== 0 || $end !== null) {
+                    $value = substr($value, $start, $end);
+                }
             }
         }
 
