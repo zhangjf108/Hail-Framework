@@ -17,7 +17,7 @@ class ContentLanguage implements MiddlewareInterface
     /**
      * @var array Allowed languages
      */
-    private $languages = [];
+    private $languages;
 
     /**
      * @var bool Use the path to detect the language

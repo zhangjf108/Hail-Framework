@@ -110,6 +110,10 @@ Hail\Http\Middleware\Cors:
 Hail\Http\Middleware\Payload: []
 Hail\Http\Middleware\ScriptPath: []
 Hail\Http\Middleware\TrailingSlash: []
+Hail\Http\Middleware\ContentType: []
+Hail\Http\Middleware\Encoding: []
+Hail\Http\Middleware\Language:
+  arguments: ["CONFIG.env.languages"]
 
 # Hail Framework middleware
 Hail\Http\Middleware\I18n:
