@@ -65,13 +65,13 @@ class Debugger
     /********************* logging ****************d*g**/
 
     /** @var string name of the directory where errors should be logged */
-    public static $logDirectory;
+    private static $logDirectory;
 
     /** @var int  log bluescreen in production mode for this error severity */
     public static $logSeverity = 0;
 
     /** @var string|array email(s) to which send error notifications */
-    public static $email;
+    private static $email;
 
     /** for LoggerInterface */
     const
@@ -170,9 +170,8 @@ class Debugger
         if ($logDirectory !== null) {
             self::$logDirectory = $logDirectory;
         }
-        if (self::$logDirectory && (!is_dir(self::$logDirectory) || !preg_match('#([a-z]+:)?[/\\\\]#Ai',
-                    self::$logDirectory))
-        ) {
+
+        if (self::$logDirectory && (!is_dir(self::$logDirectory) || !preg_match('#([a-z]+:)?[/\\\\]#Ai', self::$logDirectory))) {
             self::$logDirectory = null;
             self::exceptionHandler(new \RuntimeException('Logging directory not found or is not absolute path.'));
         }
@@ -460,7 +459,6 @@ class Debugger
             try {
                 self::log("$message in $file:$line", self::getErrorLevel($severity));
             } catch (\Throwable $e) {
-            } catch (\Exception $foo) {
             }
 
             return null;
@@ -548,8 +546,6 @@ class Debugger
     {
         if (!self::$logger) {
             self::$logger = new Logger(self::$logDirectory, self::$email, self::getBlueScreen());
-            self::$logger->directory = &self::$logDirectory; // back compatiblity
-            self::$logger->email = &self::$email;
         }
 
         return self::$logger;
@@ -579,8 +575,9 @@ class Debugger
             ]);
 
             return ob_get_clean();
+        }
 
-        } elseif (!self::$productionMode) {
+        if (!self::$productionMode) {
             Dumper::dump($var, [
                 Dumper::DEPTH => self::$maxDepth,
                 Dumper::TRUNCATE => self::$maxLength,

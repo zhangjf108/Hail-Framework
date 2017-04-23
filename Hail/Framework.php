@@ -84,7 +84,9 @@ class Framework
 		}
 
 		$container = static::getContainer();
+
 		Facade::setContainer($container);
+        $container->get('alias')->register();
 
         $config = $container->get('config');
 
@@ -96,9 +98,8 @@ class Framework
             $config->get('crypto.format')
         );
 
-		$container->get('alias')->register();
-
-		if ($timezone = $config->get('app.timezone')) {
+        $timezone = $config->get('app.timezone');
+		if ($timezone !== date_default_timezone_get()) {
             date_default_timezone_set($timezone);
         }
 

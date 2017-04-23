@@ -11,6 +11,8 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\LoggerTrait;
 use Psr\Log\LogLevel;
 
+define('SEASLOG_EXTENSION', extension_loaded('seaslog'));
+
 /**
  * Logger.
  */
@@ -39,10 +41,22 @@ class Logger implements LoggerInterface
 
     public function __construct($directory, $email = null, BlueScreen $blueScreen = null)
     {
+        if (!is_dir($directory)) {
+            throw new \InvalidArgumentException("Directory '$this->directory' is not found or is not directory.");
+        }
+
         $this->directory = $directory;
         $this->email = $email;
         $this->blueScreen = $blueScreen;
         $this->mailer = [$this, 'defaultMailer'];
+
+        if (SEASLOG_EXTENSION) {
+            $directory = rtrim(str_replace('\\', '/', $directory), '/');
+            $pos = strrpos($directory, '/');
+
+            \SeasLog::setBasePath(substr($directory, 0, $pos));
+            \SeasLog::setLogger(substr($directory, $pos + 1));
+        }
     }
 
     /**
@@ -56,36 +70,28 @@ class Logger implements LoggerInterface
      */
     public function log($level, $message, array $context = [])
     {
-        if (!$this->directory) {
-            throw new \LogicException('Directory is not specified.');
-        }
-
-        if (!is_dir($this->directory)) {
-            throw new \RuntimeException("Directory '$this->directory' is not found or is not directory.");
-        }
-
-        $message = Dumper::interpolate($message, $context);
-
         $exceptionFile = null;
-        if (isset($context['exception'])) {
-            // NOTE: per PSR-3, this reserved key could be anything, but if it is an Exception, we
-            //       can use that Exception to obtain a stack-trace for output in ChromeLogger.
-            $exception = $context['exception'];
+        if (isset($context['exception']) && $context['exception'] instanceof \Throwable) {
+            $exceptionFile = $this->getExceptionFile($context['exception']);
+        }
 
-            if ($exception instanceof \Throwable) {
-                $exceptionFile = $this->getExceptionFile($exception);
+        if (SEASLOG_EXTENSION) {
+            $message .= $exceptionFile ? ' @@  ' . basename($exceptionFile) : '';
+
+            \SeasLog::log($level, $message, $context);
+        } else {
+            $message = Dumper::interpolate($message, $context);
+
+            $line = $this->formatLogLine($message, $exceptionFile);
+            $file = $this->directory . '/' . strtolower($level ?: LogLevel::DEBUG) . '.log';
+
+            if (!@file_put_contents($file, $line . PHP_EOL, FILE_APPEND | LOCK_EX)) { // @ is escalated to exception
+                throw new \RuntimeException("Unable to write to log file '$file'. Is directory writable?");
             }
         }
 
-        $line = $this->formatLogLine($message, $exceptionFile);
-        $file = $this->directory . '/' . strtolower($level ?: LogLevel::DEBUG) . '.log';
-
-        if (!@file_put_contents($file, $line . PHP_EOL, FILE_APPEND | LOCK_EX)) { // @ is escalated to exception
-            throw new \RuntimeException("Unable to write to log file '$file'. Is directory writable?");
-        }
-
         if ($exceptionFile) {
-            $this->logException($message, $exceptionFile);
+            $this->logException($context['exception'], $exceptionFile);
         }
 
         if (in_array($level, [LogLevel::ERROR, LogLevel::EMERGENCY, LogLevel::CRITICAL, LogLevel::ALERT], true)) {
@@ -105,7 +111,7 @@ class Logger implements LoggerInterface
     protected function formatLogLine($message, $exceptionFile = null)
     {
         return implode(' ', [
-            @date('[Y-m-d H-i-s]'), // @ timezone may not be set
+            date('[Y-m-d H-i-s]'), // @ timezone may not be set
             preg_replace('#\s*\r?\n\s*#', ' ', Dumper::formatMessage($message)),
             ' @  ' . Helpers::getSource(),
             $exceptionFile ? ' @@  ' . basename($exceptionFile) : null,
@@ -144,7 +150,7 @@ class Logger implements LoggerInterface
             }
         }
 
-        return $dir . 'exception--' . @date('Y-m-d--H-i') . "--$hash.html"; // @ timezone may not be set
+        return $dir . 'exception--' . date('Y-m-d--H-i') . "--$hash.html"; // @ timezone may not be set
     }
 
 
