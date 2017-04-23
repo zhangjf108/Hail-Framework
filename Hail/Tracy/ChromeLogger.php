@@ -2,7 +2,6 @@
 
 namespace Hail\Tracy;
 
-use Hail\Util\SingletonTrait;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LoggerTrait;
@@ -16,7 +15,6 @@ use Psr\Log\LogLevel;
  */
 class ChromeLogger implements LoggerInterface
 {
-    use SingletonTrait;
     use LoggerTrait;
 
     const VERSION = '4.1.0';
@@ -98,11 +96,15 @@ class ChromeLogger implements LoggerInterface
      */
     public function writeToResponse(ResponseInterface $response)
     {
-        $value = $this->getHeaderValue();
+        if ($this->entries !== []) {
+            $value = $this->getHeaderValue();
 
-        $this->entries = [];
+            $this->entries = [];
 
-        return $response->withHeader(self::HEADER_NAME, $value);
+            return $response->withHeader(self::HEADER_NAME, $value);
+        }
+
+        return $response;
     }
 
     /**

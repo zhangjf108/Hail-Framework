@@ -44,12 +44,10 @@ trait SapiTrait
 	private function emitStatusLine(ResponseInterface $response)
 	{
 		$reasonPhrase = $response->getReasonPhrase();
-		header(sprintf(
-			'HTTP/%s %d%s',
-			$response->getProtocolVersion(),
-			$response->getStatusCode(),
-			($reasonPhrase ? ' ' . $reasonPhrase : '')
-		));
+		header('HTTP/' . $response->getProtocolVersion() . ' ' .
+            $response->getStatusCode() .
+            ($reasonPhrase ? ' ' . $reasonPhrase : '')
+        );
 	}
 
 	/**
@@ -65,14 +63,9 @@ trait SapiTrait
 	private function emitHeaders(ResponseInterface $response)
 	{
 		foreach ($response->getHeaders() as $header => $values) {
-			$name = $this->filterHeader($header);
 			$first = true;
 			foreach ($values as $value) {
-				header(sprintf(
-					'%s: %s',
-					$name,
-					$value
-				), $first);
+				header($header  . ': ' . $value, $first);
 				$first = false;
 			}
 		}
@@ -93,20 +86,5 @@ trait SapiTrait
 		while (ob_get_level() > $maxBufferLevel) {
 			ob_end_flush();
 		}
-	}
-
-	/**
-	 * Filter a header name to wordcase
-	 *
-	 * @param string $header
-	 *
-	 * @return string
-	 */
-	private function filterHeader($header)
-	{
-		$filtered = str_replace('-', ' ', $header);
-		$filtered = ucwords($filtered);
-
-		return str_replace(' ', '-', $filtered);
 	}
 }

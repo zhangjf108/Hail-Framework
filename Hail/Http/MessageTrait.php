@@ -81,6 +81,7 @@ trait MessageTrait
 			$value = [$value];
 		}
 
+        $header = Helpers::normalizeHeaderName($header);
 		$value = Helpers::trimHeaderValues($value);
 		$normalized = strtolower($header);
 

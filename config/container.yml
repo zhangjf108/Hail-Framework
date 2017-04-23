@@ -65,6 +65,10 @@ http.dispatcher:
 arrays: Hail\Util\Arrays
 crypto: Hail\Util\Crypto
 debugger: Hail\Tracy\Debugger
+logger:
+  factory: Hail\Tracy\Debugger::getLogger
+  to:
+    - Psr\Log\LoggerInterface
 generators: Hail\Util\Generators
 inflector: Hail\Util\Inflector
 json: Hail\Util\Json

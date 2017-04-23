@@ -6,6 +6,7 @@
 
 namespace Hail\Tracy;
 
+use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 
@@ -138,6 +139,9 @@ class Debugger
     /** @var LoggerInterface */
     private static $logger;
 
+    /** @var ChromeLogger */
+    private static $chromeLogger;
+
     /** @var Bar\TracePanel */
     private static $trace;
 
@@ -171,7 +175,9 @@ class Debugger
             self::$logDirectory = $logDirectory;
         }
 
-        if (self::$logDirectory && (!is_dir(self::$logDirectory) || !preg_match('#([a-z]+:)?[/\\\\]#Ai', self::$logDirectory))) {
+        if (self::$logDirectory && (!is_dir(self::$logDirectory) || !preg_match('#([a-z]+:)?[/\\\\]#Ai',
+                    self::$logDirectory))
+        ) {
             self::$logDirectory = null;
             self::exceptionHandler(new \RuntimeException('Logging directory not found or is not absolute path.'));
         }
@@ -682,7 +688,11 @@ class Debugger
      */
     public static function getChromeLogger(): ChromeLogger
     {
-        return ChromeLogger::getInstance();
+        if (self::$chromeLogger === null) {
+            self::$chromeLogger = new ChromeLogger();
+        }
+
+        return self::$chromeLogger;
     }
 
     /**
@@ -717,5 +727,19 @@ class Debugger
         return static::$trace ?? (static::$trace = new Bar\TracePanel(
                 STORAGE_PATH . 'xdebugTrace.xt'
             ));
+    }
+
+    /**
+     * @param ResponseInterface $response
+     *
+     * @return ResponseInterface
+     */
+    public static function writeToResponse(ResponseInterface $response)
+    {
+        if (self::$chromeLogger !== null) {
+            $response = self::$chromeLogger->writeToResponse($response);
+        }
+
+        return $response;
     }
 }
