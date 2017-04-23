@@ -17,11 +17,11 @@ Library: Hail\Facade\Library
 Model: Hail\Facade\Model
 Output: Hail\Facade\Output
 Router: Hail\Facade\Router
-Serialize: Hail\Facade\Serialize
 Session: Hail\Facade\Session
 Storage: Hail\Facade\Storage
 Template: Hail\Facade\Template
 Validator: Hail\Facade\Validator
+Serialize: Hail\Util\Serialize
 Arrays: Hail\Util\Arrays
 Debugger: Hail\Tracy\Debugger
 Json: Hail\Util\Json

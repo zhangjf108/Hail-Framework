@@ -1,4 +1,5 @@
 <?php
+
 namespace Hail\Util;
 
 /**
@@ -22,208 +23,203 @@ namespace Hail\Util;
  */
 class Serialize
 {
-	const EXT_SWOOLE = 'swoole';
-	const EXT_SWOOLE_FAST = 'swoole_fast';
-	const EXT_MSGPACK = 'msgpack';
-	const EXT_IGBINARY = 'igbinary';
-	const EXT_HPROSE = 'hprose';
-	const EXT_JSON = 'json';
-	const EXT_SERIALIZE = 'serialize';
+    const SWOOLE = 'swoole';
+    const SWOOLE_FAST = 'swoole_fast';
+    const MSGPACK = 'msgpack';
+    const IGBINARY = 'igbinary';
+    const HPROSE = 'hprose';
+    const JSON = 'json';
+    const SERIALIZE = 'serialize';
 
-	private static $set = [
-		'msgpack' => [
-			'ext' => 'msgpack',
-			'type' => 'bin',
-			'encoder' => 'msgpack_pack',
-			'decoder' => 'msgpack_unpack',
-		],
-		'swoole' => [
-			'ext' => 'swoole_serialize',
-			'type' => 'bin',
-			'encoder' => 'swoole_pack',
-			'decoder' => 'swoole_unpack',
-		],
-		'swoole_fast' => [
-			'ext' => 'swoole_serialize',
-			'type' => 'bin',
-			'encoder' => 'swoole_fast_pack',
-			'decoder' => 'swoole_unpack',
-		],
-		'igbinary' => [
-			'ext' => 'igbinary',
-			'type' => 'bin',
-			'encoder' => 'igbinary_serialize',
-			'decoder' => 'igbinary_unserialize',
-		],
-		'hprose' => [
-			'ext' => 'hprose',
-			'type' => 'text',
-			'encoder' => 'hprose_serialize',
-			'decoder' => 'hprose_unserialize',
-		],
-		'json' => [
-			'type' => 'text',
-			'encoder' => 'Hail\Util\Json::encode',
-			'decoder' => 'Hail\Util\Json::decode',
-		],
-		'serialize' => [
-			'type' => 'text',
-			'encoder' => 'serialize',
-			'decoder' => 'unserialize',
-		],
-	];
+    private const EXTENSION = 'ext';
+    private const ENCODER = 'encoder';
+    private const DECODER = 'decoder';
 
-	private $extension;
-	private $type;
-	private $encoder;
-	private $decoder;
+    private static $set = [
+        self::MSGPACK => [
+            self::EXTENSION => 'msgpack',
+            self::ENCODER => 'msgpack_pack',
+            self::DECODER => 'msgpack_unpack',
+        ],
+        self::SWOOLE => [
+            self::EXTENSION => 'swoole_serialize',
+            self::ENCODER => 'swoole_pack',
+            self::DECODER => 'swoole_unpack',
+        ],
+        self::SWOOLE_FAST => [
+            self::EXTENSION => 'swoole_serialize',
+            self::ENCODER => 'swoole_fast_pack',
+            self::DECODER => 'swoole_unpack',
+        ],
+        self::IGBINARY => [
+            self::EXTENSION => 'igbinary',
+            self::ENCODER => 'igbinary_serialize',
+            self::DECODER => 'igbinary_unserialize',
+        ],
+        self::HPROSE => [
+            self::EXTENSION => 'hprose',
+            self::ENCODER => 'hprose_serialize',
+            self::DECODER => 'hprose_unserialize',
+        ],
+        self::JSON => [
+            self::EXTENSION => null,
+            self::ENCODER => 'Hail\Util\Json::encode',
+            self::DECODER => 'Hail\Util\Json::decode',
+        ],
+        self::SERIALIZE => [
+            self::EXTENSION => null,
+            self::ENCODER => 'serialize',
+            self::DECODER => 'unserialize',
+        ],
+    ];
 
-	public function __construct(string $type)
-	{
-		$this->setExtension($type);
-	}
+    private static $default = self::SERIALIZE;
 
-	/**
-	 * @param string $type
-	 *
-	 * @return $this
-	 * @throws \InvalidArgumentException
-	 * @throws \LogicException
-	 */
-	public function setExtension(string $type)
-	{
-		if (!isset(self::$set[$type])) {
-			throw new \InvalidArgumentException("Serialize type $type not defined");
-		}
+    public static function default(string $type): void
+    {
+        self::check($type);
 
-		$set = self::$set[$type];
-		if (isset($set['ext']) && !extension_loaded($set['ext'])) {
-			throw new \LogicException("Extension {$set['ext']} not loaded");
-		}
+        self::$default = $type;
+    }
 
-		$this->extension = $type;
-		$this->type = $set['type'];
-		$this->encoder = $set['encoder'];
-		$this->decoder = $set['decoder'];
+    private static function check(string $type)
+    {
+        if (!isset(self::$set[$type])) {
+            throw new \InvalidArgumentException('Serialize type not defined: ' . $type);
+        }
 
-		return $this;
-	}
+        $extension = self::$set[$type][self::EXTENSION];
+        if ($extension && !extension_loaded($extension)) {
+            throw new \LogicException('Extension not loaded: ' . $extension);
+        }
+    }
 
-	/**
-	 * @param string $type
-	 *
-	 * @return Serialize
-	 * @throws \InvalidArgumentException
-	 * @throws \LogicException
-	 */
-	public function withExtension(string $type)
-	{
-		$clone = clone $this;
+    private static function getFunction($key, string $type = null)
+    {
+        if ($type === null) {
+            $type = self::$default;
+        } else {
+            self::check($type);
+        }
 
-		return $clone->setExtension($type);
-	}
+        return self::$set[$type][$key];
+    }
 
-	/**
-	 * @param mixed $value
-	 *
-	 * @return string
-	 */
-	public function encode($value)
-	{
-		$fn = $this->encoder;
+    /**
+     * @param mixed       $value
+     * @param string|null $type
+     *
+     * @return string
+     */
+    public static function encode($value, string $type = null): string
+    {
+        $fn = self::$set[$type ?? self::$default]['encoder'] ??
+            self::getFunction('encoder', $type);
 
-		return $fn($value);
-	}
+        return $fn($value);
+    }
 
-	/**
-	 * @param string $value
-	 *
-	 * @return mixed
-	 */
-	public function decode($value)
-	{
-		$fn = $this->decoder;
+    /**
+     * @param string      $value
+     * @param string|null $type
+     *
+     * @return mixed
+     */
+    public static function decode(string $value, string $type = null)
+    {
+        $fn = self::$set[$type ?? self::$default]['decoder'] ??
+            self::getFunction('decoder', $type);
 
-		return $fn($value);
-	}
+        return $fn($value);
+    }
 
-	/**
-	 * @param string $value
-	 *
-	 * @return string
-	 */
-	public function encodeToStr($value)
-	{
-		if ($this->type === 'text') {
-			return $this->encode($value);
-		}
+    /**
+     * @param string      $value
+     * @param string|null $type
+     *
+     * @return string
+     */
+    public static function encodeToBase64($value, string $type = null): string
+    {
+        return base64_encode(
+            self::encode($value, $type)
+        );
+    }
 
-		return base64_encode(
-			$this->encode($value)
-		);
-	}
+    /**
+     * @param string      $value
+     * @param string|null $type
+     *
+     * @return mixed
+     */
+    public static function decodeFromBase64(string $value, string $type = null)
+    {
+        return self::decode(
+            base64_decode($value), $type
+        );
+    }
 
-	/**
-	 * @param string $value
-	 *
-	 * @return mixed
-	 */
-	public function decodeFromStr($value)
-	{
-		if ($this->type === 'text') {
-			return $this->decode($value);
-		}
+    /**
+     * @param array       $array
+     * @param string|null $type
+     *
+     * @return array
+     */
+    public static function encodeArray(array $array, string $type = null): array
+    {
+        $fn = self::$set[$type ?? self::$default]['encoder'] ??
+            self::getFunction('encoder', $type);
 
-		return $this->decode(
-			base64_decode($value)
-		);
-	}
+        return array_map($fn, $array);
+    }
 
-	/**
-	 * @param array $array
-	 *
-	 * @return array
-	 */
-	public function encodeArray(array $array)
-	{
-		return array_map($this->encoder, $array);
-	}
+    /**
+     * @param array       $array
+     * @param string|null $type
+     *
+     * @return array
+     */
+    public static function decodeArray(array $array, string $type = null): array
+    {
+        $fn = self::$set[$type ?? self::$default]['encoder'] ??
+            self::getFunction('encoder', $type);
 
-	/**
-	 * @param array $array
-	 *
-	 * @return array
-	 */
-	public function decodeArray(array $array)
-	{
-		return array_map($this->decoder, $array);
-	}
+        return array_map($fn, $array);
+    }
 
-	/**
-	 * @param array $array
-	 *
-	 * @return array
-	 */
-	protected function encodeArrayToStr(array $array)
-	{
-		if ($this->type === 'text') {
-			return array_map($this->encoder, $array);
-		}
+    /**
+     * @param array       $array
+     * @param string|null $type
+     *
+     * @return array
+     */
+    public static function encodeArrayToBase64(array $array, string $type = null): array
+    {
+        $fn = self::$set[$type ?? self::$default]['encoder'] ??
+            self::getFunction('encoder', $type);
 
-		return array_map([$this, 'encodeToStr'], $array);
-	}
+        foreach ($array as &$v) {
+            $v = base64_encode($fn($v));
+        }
 
-	/**
-	 * @param array $array
-	 *
-	 * @return array
-	 */
-	public function decodeArrayFromStr(array $array)
-	{
-		if ($this->type === 'text') {
-			return array_map($this->decoder, $array);
-		}
+        return $array;
+    }
 
-		return array_map([$this, 'decodeFromStr'], $array);
-	}
+    /**
+     * @param array       $array
+     * @param string|null $type
+     *
+     * @return array
+     */
+    public static function decodeArrayFromBase64(array $array, string $type = null): array
+    {
+        $fn = self::$set[$type ?? self::$default]['decoder'] ??
+            self::getFunction('decoder', $type);
+
+        foreach ($array as &$v) {
+            $v = $fn(base64_encode($v));
+        }
+
+        return $array;
+    }
 }

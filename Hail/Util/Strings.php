@@ -239,13 +239,13 @@ class Strings
 			$maxLen -= mb_strlen($append);
 			if ($maxLen < 1) {
 				return $append;
-
-			} elseif ($matches = static::match($s, '#^.{1,' . $maxLen . '}(?=[\s\x00-/:-@\[-`{-~])#us')) {
-				return $matches[0] . $append;
-
-			} else {
-				return mb_substr($s, 0, $maxLen) . $append;
 			}
+
+			if ($matches = static::match($s, '#^.{1,' . $maxLen . '}(?=[\s\x00-/:-@\[-`{-~])#us')) {
+				return $matches[0] . $append;
+			}
+
+			return mb_substr($s, 0, $maxLen) . $append;
 		}
 
 		return $s;
@@ -488,7 +488,9 @@ class Strings
 	{
 		if (!$nth) {
 			return null;
-		} elseif ($nth > 0) {
+		}
+
+		if ($nth > 0) {
 			if ($needle === '') {
 				return 0;
 			}

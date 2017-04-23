@@ -76,9 +76,7 @@ inflector: Hail\Util\Inflector
 
 json: Hail\Util\Json
 
-serialize:
-  class|to: Hail\Util\Serialize
-  arguments: [CONFIG.env.serialize]
+serialize: Hail\Util\Serialize
 
 strings: Hail\Util\Strings
 
