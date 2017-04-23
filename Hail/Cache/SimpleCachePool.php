@@ -66,7 +66,7 @@ class SimpleCachePool implements CacheItemPoolInterface
      */
     protected function fetchObjectFromCache($key)
     {
-        return $this->cache->getDirectValue($key);
+        return $this->cache->getRawValue($key);
     }
 
     /**
@@ -98,7 +98,7 @@ class SimpleCachePool implements CacheItemPoolInterface
      */
     protected function storeItemInCache(HailCacheItem $item)
     {
-        return $this->cache->setDirectValue(
+        return $this->cache->setRawValue(
             $item->getKey(),
             $item->get(),
             $item->getTags(),

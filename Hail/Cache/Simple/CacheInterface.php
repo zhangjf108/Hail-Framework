@@ -53,12 +53,12 @@ interface CacheInterface extends PsrCacheInterface, \ArrayAccess
      *
      * @return bool
      */
-    public function setDirectValue(string $key, $value, array $tags = [], int $expire = null);
+    public function setRawValue(string $key, $value, array $tags = [], int $expire = null);
 
     /**
      * @param string $key
      *
      * @return array
      */
-    public function getDirectValue(string $key);
+    public function getRawValue(string $key);
 }

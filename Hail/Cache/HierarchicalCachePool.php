@@ -31,7 +31,7 @@ class HierarchicalCachePool extends SimpleCachePool
      */
     protected function fetchObjectFromCache($key)
     {
-        return $this->cache->getDirectValue($this->getHierarchyKey($key));
+        return $this->cache->getRawValue($this->getHierarchyKey($key));
     }
 
     /**
@@ -54,7 +54,7 @@ class HierarchicalCachePool extends SimpleCachePool
      */
     protected function storeItemInCache(CacheItemInterface $item)
     {
-        $this->cache->setDirectValue(
+        $this->cache->setRawValue(
             $this->getHierarchyKey($item->getKey()),
             $item->get(),
             $item->getTags(),

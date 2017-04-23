@@ -179,7 +179,7 @@ abstract class AbstractAdapter implements CacheInterface
 		return $found === true ? $value : $default;
 	}
 
-	public function getDirectValue(string $key)
+	public function getRawValue(string $key)
 	{
 		$this->validateKey($key);
 		$this->namespace && $this->prefixValue($key);
@@ -284,7 +284,7 @@ abstract class AbstractAdapter implements CacheInterface
 		return $this->doSet($key, [true, $value, [], $expireTime], $ttl);
 	}
 
-	public function setDirectValue(string $key, $value, array $tags = [], int $expireTime = null)
+	public function setRawValue(string $key, $value, array $tags = [], int $expireTime = null)
 	{
 		$this->validateKey($key);
 		$this->namespace && $this->prefixValue($key);
