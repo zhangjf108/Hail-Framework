@@ -63,23 +63,13 @@ http.dispatcher:
 
 # Tools
 arrays: Hail\Util\Arrays
-
-crypto:
-  class|to: Hail\Util\Crypto
-  arguments: [CONFIG.crypto.format]
-
+crypto: Hail\Util\Crypto
 debugger: Hail\Tracy\Debugger
-
 generators: Hail\Util\Generators
-
 inflector: Hail\Util\Inflector
-
 json: Hail\Util\Json
-
 serialize: Hail\Util\Serialize
-
 strings: Hail\Util\Strings
-
 validator: Hail\Util\Validator
 
 # Application

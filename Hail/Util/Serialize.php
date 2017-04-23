@@ -77,12 +77,10 @@ class Serialize
 
     public static function default(string $type): void
     {
-        self::check($type);
-
-        self::$default = $type;
+        self::$default = self::check($type);
     }
 
-    private static function check(string $type)
+    private static function check(string $type): string
     {
         if (!isset(self::$set[$type])) {
             throw new \InvalidArgumentException('Serialize type not defined: ' . $type);
@@ -92,6 +90,8 @@ class Serialize
         if ($extension && !extension_loaded($extension)) {
             throw new \LogicException('Extension not loaded: ' . $extension);
         }
+
+        return $type;
     }
 
     private static function getFunction($key, string $type = null)

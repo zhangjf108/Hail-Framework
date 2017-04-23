@@ -3,10 +3,7 @@
 namespace Hail;
 
 use Hail\{
-	Facade\Facade,
-	Container\Compiler,
-	Container\Container,
-	Tracy\Debugger
+    Facade\Facade, Container\Compiler, Container\Container, Tracy\Debugger, Util\Crypto, Util\Serialize
 };
 
 if (!defined('BASE_PATH')) {
@@ -87,12 +84,19 @@ class Framework
 		}
 
 		$container = static::getContainer();
-
 		Facade::setContainer($container);
 
-		$container->get('alias')->register();
+        $config = $container->get('config');
 
-		$config = $container->get('config');
+        Serialize::default(
+            $config->get('env.serialize')
+        );
+
+        Crypto::format(
+            $config->get('crypto.format')
+        );
+
+		$container->get('alias')->register();
 
 		if ($timezone = $config->get('app.timezone')) {
             date_default_timezone_set($timezone);

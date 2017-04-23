@@ -7,7 +7,6 @@ CachePool: Hail\Facade\CachePool
 CachedDB: Hail\Facade\CachedDB
 Config: Hail\Facade\Config
 Cookie: Hail\Facade\Cookie
-Crypto: Hail\Facade\Crypto
 DB: Hail\Facade\DB
 Container: Hail\Facade\Container
 DI: Hail\Facade\DI
@@ -21,6 +20,7 @@ Session: Hail\Facade\Session
 Storage: Hail\Facade\Storage
 Template: Hail\Facade\Template
 Validator: Hail\Facade\Validator
+Crypto: Hail\Util\Crypto
 Serialize: Hail\Util\Serialize
 Arrays: Hail\Util\Arrays
 Debugger: Hail\Tracy\Debugger
