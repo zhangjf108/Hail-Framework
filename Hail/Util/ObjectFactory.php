@@ -1,6 +1,8 @@
 <?php
 namespace Hail\Util;
 
+use Hail\Container\Container;
+
 /**
  * Class Model
  *
@@ -13,9 +15,15 @@ class ObjectFactory implements \ArrayAccess
 
 	private $namespace;
 
-	public function __construct($namespace)
+    /**
+     * @var Container
+     */
+	private $container;
+
+	public function __construct($namespace, Container $container)
 	{
 		$this->namespace = trim($namespace, '\\') . '\\';
+		$this->container = $container;
 	}
 
 	public function __call($name, $arguments)
@@ -32,15 +40,8 @@ class ObjectFactory implements \ArrayAccess
 	{
 		if (!isset($this->$key)) {
 			$class = $this->namespace . ucfirst($key);
-			if (method_exists($class, 'getInstance')) {
-				return $this->set($key, $class::getInstance());
-			}
 
-			if (!class_exists($class)) {
-				throw new \LogicException("Class $class Not Defined");
-			}
-
-			return $this->set($key, new $class());
+			return $this->set($key, $this->container->create($class));
 		}
 
 		return $this->$key;

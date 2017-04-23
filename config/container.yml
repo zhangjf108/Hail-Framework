@@ -99,13 +99,11 @@ dispatcher:
 
 lib:
   class: Hail\Util\ObjectFactory
-  arguments:
-    - App\Library
+  arguments: [App\Library, "@container"]
 
 model:
   class: Hail\Util\ObjectFactory
-  arguments:
-    - App\Model
+  arguments: [App\Model, "@container"]
 
 # Middleware
 Hail\Http\Middleware\ErrorHandler: []
