@@ -10,7 +10,7 @@ if (strpos(__DIR__, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) === fa
 	echo 'Please use "composer dump-autoload --optimize" to optimize autoload performance.', "\n";
 }
 
-(new Hail\Container\Compiler())->compile();
+(new Hail\Container\Compiler(Config::get('container')))->compile();
 echo 'Container Generated', "\n";
 
 $helperDir = __DIR__ . '/helper/';
@@ -19,7 +19,7 @@ if (!is_dir($helperDir)) {
 }
 
 foreach (scandir($helperDir) as $file) {
-	if (in_array($file, ['.', '..'], true)) {
+	if (in_array($file, ['.', '..', 'SeasLog.php'], true)) {
 		continue;
 	}
 

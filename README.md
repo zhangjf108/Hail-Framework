@@ -30,6 +30,7 @@
 
 ### 遵循 PSR
 - [PSR-2 Coding Style Guide](http://www.php-fig.org/psr/psr-2/)
+- [PSR-3 Logger Interface](http://www.php-fig.org/psr/psr-3/)
 - [PSR-4 Autoloading Standard](http://www.php-fig.org/psr/psr-4/)
 - [PSR-6 Caching Interface](http://www.php-fig.org/psr/psr-6/)
 - [PSR-7 HTTP message interfaces](http://www.php-fig.org/psr/psr-7/)

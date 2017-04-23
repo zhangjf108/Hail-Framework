@@ -107,7 +107,7 @@ class ErrorHandler implements MiddlewareInterface
 			return $this->handleError($request, $exception);
 		} catch (\Throwable $exception) {
 			if (PRODUCTION_MODE) {
-				Debugger::log($exception, Debugger::EXCEPTION);
+				Debugger::log($exception, Debugger::getExceptionLevel($exception));
 
 				return $this->handleError($request, HttpErrorException::create(500, [], $exception));
 			}

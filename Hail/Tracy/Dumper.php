@@ -576,4 +576,52 @@ class Dumper
 				|| (defined('STDOUT') && function_exists('posix_isatty') && posix_isatty(STDOUT)));
 	}
 
+    /**
+     * Interpolates context values into the message placeholders.
+     *
+     * @param string $message
+     * @param array  $context
+     *
+     * @return string
+     */
+    public static function interpolate(string $message, array $context = []): string
+    {
+        // build a replacement array with braces around the context keys
+        $replace = [];
+        foreach ($context as $key => $val) {
+            // check that the value can be casted to string
+            if ($val instanceof \Throwable) {
+                $replace['{' . $key . '}'] = self::formatMessage($val);
+            } elseif (!is_array($val) && (!is_object($val) || method_exists($val, '__toString'))) {
+                $replace['{' . $key . '}'] = (string) $val;
+            }
+        }
+
+        // interpolate replacement values into the message and return
+        return strtr($message, $replace);
+    }
+
+    /**
+     * @param  string|\Exception|\Throwable
+     *
+     * @return string
+     */
+    public static function formatMessage($message)
+    {
+        if ($message instanceof \Throwable) {
+            while ($message) {
+                $tmp[] = ($message instanceof \ErrorException
+                        ? Helpers::errorTypeToString($message->getSeverity()) . ': ' . $message->getMessage()
+                        : Helpers::getClass($message) . ': ' . $message->getMessage() . ($message->getCode() ? ' #' . $message->getCode() : '')
+                    ) . ' in ' . $message->getFile() . ':' . $message->getLine();
+                $message = $message->getPrevious();
+            }
+            $message = implode("\ncaused by ", $tmp);
+
+        } elseif (!is_string($message)) {
+            $message = self::toText($message);
+        }
+
+        return trim($message);
+    }
 }
