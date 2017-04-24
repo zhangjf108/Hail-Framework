@@ -2,352 +2,293 @@
 
 namespace Hail\Filesystem\Adapter;
 
-use Dropbox\Client;
-use Dropbox\Exception;
-use Dropbox\Exception_BadResponseCode;
-use Dropbox\WriteMode;
+use LogicException;
+use Hail\Filesystem\Client\Dropbox as Client;
+use Hail\Filesystem\Client\BadRequestException;
 use Hail\Filesystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
-use Hail\Filesystem\Util;
 
-/**
- * Class Dropbox
- * $ composer require dropbox/dropbox-sdk:~1.1
- *
- * @package Hail\Filesystem\Adapter
- */
 class Dropbox extends AbstractAdapter
 {
-	use NotSupportingVisibilityTrait;
+    use NotSupportingVisibilityTrait;
 
-	/**
-	 * @var array
-	 */
-	protected static $resultMap = [
-		'bytes' => 'size',
-		'mime_type' => 'mimetype',
-	];
+    /** @var Client */
+    protected $client;
 
-	/**
-	 * @var Client
-	 */
-	protected $client;
+    public function __construct(array $config)
+    {
+        if (!isset($config['accessToken'])) {
+            throw new \InvalidArgumentException('Dropbox access token not defined');
+        }
 
-	/**
-	 * Constructor.
-	 *
-	 * @param array $config
-	 */
-	public function __construct(array $config)
-	{
-		if (!isset($config['accessToken'], $config['appSecret'])) {
-			throw new \InvalidArgumentException('Config not defined!');
-		}
+        $this->client = new Client($config['accessToken']);
 
-		$this->client = new Client($config['accessToken'], $config['appSecret']);
-		$this->setPathPrefix($config['prefix'] ?? null);
-	}
+        $this->setPathPrefix($config['prefix'] ?? '');
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function has($path)
-	{
-		return $this->getMetadata($path);
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function write($path, $contents, array $config)
+    {
+        return $this->upload($path, $contents, 'add');
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function write($path, $contents, array $config)
-	{
-		return $this->upload($path, $contents, WriteMode::add());
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function writeStream($path, $resource, array $config)
+    {
+        return $this->upload($path, $resource, 'add');
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function writeStream($path, $resource, array $config)
-	{
-		return $this->uploadStream($path, $resource, WriteMode::add());
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function update($path, $contents, array $config)
+    {
+        return $this->upload($path, $contents, 'overwrite');
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function update($path, $contents, array $config)
-	{
-		return $this->upload($path, $contents, WriteMode::force());
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function updateStream($path, $resource, array $config)
+    {
+        return $this->upload($path, $resource, 'overwrite');
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function updateStream($path, $resource, array $config)
-	{
-		return $this->uploadStream($path, $resource, WriteMode::force());
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function rename($path, $newPath): bool
+    {
+        $path = $this->applyPathPrefix($path);
+        $newPath = $this->applyPathPrefix($newPath);
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function read($path)
-	{
-		if (!$object = $this->readStream($path)) {
-			return false;
-		}
+        try {
+            $this->client->move($path, $newPath);
+        } catch (BadRequestException $e) {
+            return false;
+        }
 
-		$object['contents'] = stream_get_contents($object['stream']);
-		fclose($object['stream']);
-		unset($object['stream']);
+        return true;
+    }
 
-		return $object;
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function copy($path, $newpath): bool
+    {
+        $path = $this->applyPathPrefix($path);
+        $newpath = $this->applyPathPrefix($newpath);
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function readStream($path)
-	{
-		$stream = fopen('php://temp', 'w+');
-		$location = $this->applyPathPrefix($path);
+        try {
+            $this->client->copy($path, $newpath);
+        } catch (BadRequestException $e) {
+            return false;
+        }
 
-		if (!$this->client->getFile($location, $stream)) {
-			fclose($stream);
+        return true;
+    }
 
-			return false;
-		}
+    /**
+     * {@inheritdoc}
+     */
+    public function delete($path): bool
+    {
+        $location = $this->applyPathPrefix($path);
 
-		rewind($stream);
+        try {
+            $this->client->delete($location);
+        } catch (BadRequestException $e) {
+            return false;
+        }
 
-		return compact('stream');
-	}
+        return true;
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function rename($path, $newpath)
-	{
-		$path = $this->applyPathPrefix($path);
-		$newpath = $this->applyPathPrefix($newpath);
+    /**
+     * {@inheritdoc}
+     */
+    public function deleteDir($dirname): bool
+    {
+        return $this->delete($dirname);
+    }
 
-		try {
-			$this->client->move($path, $newpath);
-		} catch (Exception $e) {
-			return false;
-		}
+    /**
+     * {@inheritdoc}
+     */
+    public function createDir($dirname, array $config)
+    {
+        $path = $this->applyPathPrefix($dirname);
 
-		return true;
-	}
+        try {
+            $object = $this->client->createFolder($path);
+        } catch (BadRequestException $e) {
+            return false;
+        }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function copy($path, $newpath)
-	{
-		$path = $this->applyPathPrefix($path);
-		$newpath = $this->applyPathPrefix($newpath);
+        return $this->normalizeResponse($object);
+    }
 
-		try {
-			$this->client->copy($path, $newpath);
-		} catch (Exception $e) {
-			return false;
-		}
+    /**
+     * {@inheritdoc}
+     */
+    public function has($path)
+    {
+        return $this->getMetadata($path);
+    }
 
-		return true;
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function read($path)
+    {
+        if (! $object = $this->readStream($path)) {
+            return false;
+        }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function delete($path)
-	{
-		$location = $this->applyPathPrefix($path);
-		$result = $this->client->delete($location);
+        $object['contents'] = stream_get_contents($object['stream']);
+        fclose($object['stream']);
+        unset($object['stream']);
 
-		return isset($result['is_deleted']) ? $result['is_deleted'] : false;
-	}
+        return $object;
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function deleteDir($path)
-	{
-		return $this->delete($path);
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function readStream($path)
+    {
+        $path = $this->applyPathPrefix($path);
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function createDir($path, array $config)
-	{
-		$location = $this->applyPathPrefix($path);
-		$result = $this->client->createFolder($location);
+        try {
+            $stream = $this->client->download($path);
+        } catch (BadRequestException $e) {
+            return false;
+        }
 
-		if ($result === null) {
-			return false;
-		}
+        return compact('stream');
+    }
 
-		return $this->normalizeResponse($result, $path);
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function listContents($directory = '', $recursive = false): array
+    {
+        $location = $this->applyPathPrefix($directory);
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getMetadata($path)
-	{
-		$location = $this->applyPathPrefix($path);
+        $result = $this->client->listFolder($location, $recursive);
 
-		try {
-			$object = $this->client->getMetadata($location);
-		} catch (Exception_BadResponseCode $e) {
-			if ($e->getStatusCode() === 301) {
-				return false;
-			}
+        if (! count($result['entries'])) {
+            return [];
+        }
 
-			throw $e;
-		}
+        return array_map([$this, 'normalizeResponse'], $result['entries']);
+    }
 
-		if (!$object) {
-			return false;
-		}
+    /**
+     * {@inheritdoc}
+     */
+    public function getMetadata($path)
+    {
+        $path = $this->applyPathPrefix($path);
 
-		return $this->normalizeResponse($object, $path);
-	}
+        try {
+            $object = $this->client->getMetadata($path);
+        } catch (BadRequestException $e) {
+            return false;
+        }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getMimetype($path)
-	{
-		return $this->getMetadata($path);
-	}
+        return $this->normalizeResponse($object);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getSize($path)
-	{
-		return $this->getMetadata($path);
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function getSize($path)
+    {
+        return $this->getMetadata($path);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getTimestamp($path)
-	{
-		return $this->getMetadata($path);
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function getMimetype($path)
+    {
+        throw new LogicException("The Dropbox API v2 does not support mimetypes. Given path: `{$path}`.");
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getClient()
-	{
-		return $this->client;
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function getTimestamp($path)
+    {
+        return $this->getMetadata($path);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function listContents($directory = '', $recursive = false)
-	{
-		$listing = [];
-		$directory = trim($directory, '/.');
-		$location = $this->applyPathPrefix($directory);
+    public function getTemporaryLink(string $path): string
+    {
+        return $this->client->getTemporaryLink($path);
+    }
 
-		if (!$result = $this->client->getMetadataWithChildren($location)) {
-			return [];
-		}
+    public function getThumbnail(string $path, string $format = 'jpeg', string $size = 'w64h64')
+    {
+        return $this->client->getThumbnail($path, $format, $size);
+    }
 
-		foreach ($result['contents'] as $object) {
-			$path = $this->removePathPrefix($object['path']);
-			$listing[] = $this->normalizeResponse($object, $path);
+    /**
+     * {@inheritdoc}
+     */
+    public function applyPathPrefix($path): string
+    {
+        $path = parent::applyPathPrefix($path);
 
-			if ($recursive && $object['is_dir']) {
-				$listing = array_merge($listing, $this->listContents($path, true));
-			}
-		}
+        return '/'.trim($path, '/');
+    }
 
-		return $listing;
-	}
+    public function getClient(): Client
+    {
+        return $this->client;
+    }
 
-	/**
-	 * Apply the path prefix.
-	 *
-	 * @param string $path
-	 *
-	 * @return string prefixed path
-	 */
-	public function applyPathPrefix($path)
-	{
+    /**
+     * @param string $path
+     * @param resource|string $contents
+     * @param string $mode
+     *
+     * @return array|false file metadata
+     */
+    protected function upload(string $path, $contents, string $mode)
+    {
+        $path = $this->applyPathPrefix($path);
 
-		$path = parent::applyPathPrefix($path);
+        try {
+            $object = $this->client->upload($path, $contents, $mode);
+        } catch (BadRequestException $e) {
+            return false;
+        }
 
-		return '/' . ltrim(rtrim($path, '/'), '/');
-	}
+        return $this->normalizeResponse($object);
+    }
 
-	/**
-	 * Do the actual upload of a string file.
-	 *
-	 * @param string    $path
-	 * @param string    $contents
-	 * @param WriteMode $mode
-	 *
-	 * @return array|false file metadata
-	 */
-	protected function upload($path, $contents, WriteMode $mode)
-	{
-		$location = $this->applyPathPrefix($path);
+    protected function normalizeResponse(array $response): array
+    {
+        $normalizedPath = ltrim($this->removePathPrefix($response['path_display']), '/');
 
-		if (!$result = $this->client->uploadFileFromString($location, $mode, $contents)) {
-			return false;
-		}
+        $normalizedResponse = ['path' => $normalizedPath];
 
-		return $this->normalizeResponse($result, $path);
-	}
+        if (isset($response['server_modified'])) {
+            $normalizedResponse['timestamp'] = strtotime($response['server_modified']);
+        }
 
-	/**
-	 * Do the actual upload of a file resource.
-	 *
-	 * @param string    $path
-	 * @param resource  $resource
-	 * @param WriteMode $mode
-	 *
-	 * @return array|false file metadata
-	 */
-	protected function uploadStream($path, $resource, WriteMode $mode)
-	{
-		$location = $this->applyPathPrefix($path);
+        if (isset($response['size'])) {
+            $normalizedResponse['bytes'] = $response['size'];
+        }
 
-		// If size is zero, consider it unknown.
-		$size = Util::getStreamSize($resource) ?: null;
+        $type = ($response['.tag'] === 'folder' ? 'dir' : 'file');
+        $normalizedResponse['type'] = $type;
 
-		if (!$result = $this->client->uploadFile($location, $mode, $resource, $size)) {
-			return false;
-		}
-
-		return $this->normalizeResponse($result, $path);
-	}
-
-	/**
-	 * Normalize a Dropbox response.
-	 *
-	 * @param array $response
-	 *
-	 * @return array
-	 */
-	protected function normalizeResponse(array $response)
-	{
-		$result = ['path' => ltrim($this->removePathPrefix($response['path']), '/')];
-
-		if (isset($response['modified'])) {
-			$result['timestamp'] = strtotime($response['modified']);
-		}
-
-		$result = array_merge($result, Util::map($response, static::$resultMap));
-		$result['type'] = $response['is_dir'] ? 'dir' : 'file';
-
-		return $result;
-	}
+        return $normalizedResponse;
+    }
 }
-
