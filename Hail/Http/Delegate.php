@@ -45,7 +45,7 @@ class Delegate implements DelegateInterface
 				return $this->delegate->process($request);
 			}
 
-			return Factory::response();
+			throw new \LogicException('Middleware queue exhausted, with no response returned.');
 		}
 
 		return $middleware->process($request, $this);

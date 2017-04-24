@@ -2,7 +2,7 @@
 
 namespace Hail\Http;
 
-use Hail\Http\Event\DispatcherNextEvent;
+use Hail\Http\Event\DispatcherEvent;
 use Psr\Container\ContainerInterface;
 use Psr\Http\{
     ServerMiddleware\DelegateInterface,
@@ -57,16 +57,6 @@ class Dispatcher implements MiddlewareInterface
      */
     public function next(ServerRequestInterface $request): ?MiddlewareInterface
     {
-        if ($this->container !== null) {
-            static $event;
-            if ($event === null) {
-                $event = new DispatcherNextEvent();
-            }
-
-            $this->container->get('event')
-                ->trigger($event->setRequest($request));
-        }
-
         ++$this->index;
 
         return $this->get($request);
@@ -84,7 +74,7 @@ class Dispatcher implements MiddlewareInterface
     {
         $this->index = 0;
 
-        return $this->get($request)->process($request, new Delegate($this, null));
+        return $this->get($request)->process($request, new Delegate($this));
     }
 
 
@@ -111,6 +101,16 @@ class Dispatcher implements MiddlewareInterface
     {
         if (!isset($this->middleware[$this->index])) {
             return null;
+        }
+
+        if ($this->container !== null) {
+            static $event;
+            if ($event === null) {
+                $event = new DispatcherEvent();
+            }
+
+            $this->container->get('event')
+                ->trigger($event->setRequest($request));
         }
 
         $middleware = $this->middleware[$this->index];
@@ -166,8 +166,7 @@ class Dispatcher implements MiddlewareInterface
             return;
         }
 
-        $middleware = $this->middleware[$this->index];
-        $this->after($middleware);
+        $this->after($this->middleware[$this->index]);
     }
 
     /**

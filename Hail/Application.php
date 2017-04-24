@@ -4,7 +4,7 @@ namespace Hail;
 
 use Hail\Container\Container;
 use Hail\Http\Emitter\Sapi;
-use Hail\Http\Event\DispatcherNextEvent;
+use Hail\Http\Event\DispatcherEvent;
 use Hail\Http\HttpEvents;
 
 class Application
@@ -45,7 +45,7 @@ class Application
 
     public function run()
     {
-        $this->event(HttpEvents::DISPATCHER_NEXT, [$this, 'changeRequest']);
+        $this->event(HttpEvents::DISPATCHER, [$this, 'changeRequest']);
 
         $response = $this->get('http.dispatcher')->dispatch(
             $this->get('http.request')
@@ -54,34 +54,10 @@ class Application
         (new Sapi())->emit($response);
     }
 
-    public function changeRequest(DispatcherNextEvent $event): void
+    public function changeRequest(DispatcherEvent $event): void
     {
         $this->get('request')->changeServerRequest(
             $event->getRequest()
         );
-    }
-
-    /**
-     * @param string      $root
-     * @param string|null $path
-     *
-     * @return string
-     */
-    public static function path(string $root, string $path = null): string
-    {
-        if ($path === null || $path === '') {
-            return $root;
-        }
-
-        if (strpos($path, '..') !== false) {
-            throw new \InvalidArgumentException('Unable to get a directory higher than ROOT');
-        }
-
-        $path = str_replace('\\', '/', $path);
-        if ($path[0] === '/') {
-            $path = ltrim($path, '/');
-        }
-
-        return realpath($root . $path) ?: $root . $path;
     }
 }

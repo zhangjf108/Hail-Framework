@@ -7,7 +7,10 @@ alias:
 
 i18n: Hail\I18N\I18N
 
-event: Hail\Event\EventManager
+event:
+  class|to: Hail\Event\EventManager
+  to:
+    - Psr\EventManager\EventManagerInterface
 
 acl: Hail\Acl
 

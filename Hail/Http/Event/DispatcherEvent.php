@@ -10,11 +10,11 @@ use Psr\Http\Message\ServerRequestInterface;
  * Class DispatcherNextEvent
  * @package Hail\Http\Event
  */
-class DispatcherNextEvent extends Event
+class DispatcherEvent extends Event
 {
     public function __construct()
     {
-        parent::__construct(HttpEvents::DISPATCHER_NEXT);
+        parent::__construct(HttpEvents::DISPATCHER);
     }
 
     public function getRequest(): ServerRequestInterface

@@ -206,15 +206,15 @@ class Router
     public function dispatch(string $method, string $url)
     {
         $route = $this->match($url);
-        if (!$route) {
-            return $this->result = [
-                'error' => 404,
-                'method' => $method,
-                'url' => $url,
-            ];
-        }
 
-        if (isset($route['methods'][$method])) {
+        $result = [
+            'method' => $method,
+            'url' => $url,
+        ];
+
+        if (!$route) {
+            $result['error'] = 404;
+        } elseif (isset($route['methods'][$method])) {
             $params = $route['params'];
             $handler = $route['methods'][$method];
 
@@ -224,27 +224,23 @@ class Router
                     'controller' => $handler['controller'] ?? $params['controller'] ?? '',
                     'action' => $handler['action'] ?? $params['action'] ?? '',
                 ];
-
-                unset($params['app'], $params['controller'], $params['action']);
             }
 
-            return $this->result = [
-                'method' => $method,
-                'url' => $url,
+            $result += [
                 'route' => $route['route'],
                 'params' => $params,
                 'handler' => $handler,
             ];
+        } else {
+            $result += [
+                'error' => 405,
+                'route' => $route['route'],
+                'params' => $route['params'],
+                'allowed' => array_keys($route['methods']),
+            ];
         }
 
-        return $this->result = [
-            'error' => 405,
-            'method' => $method,
-            'url' => $url,
-            'route' => $route['route'],
-            'params' => $route['params'],
-            'allowed' => array_keys($route['methods']),
-        ];
+        return $this->result = $result;
     }
 
     public function getResult()

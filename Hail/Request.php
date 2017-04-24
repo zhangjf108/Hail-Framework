@@ -14,7 +14,7 @@ use Psr\Http\Message\{
 };
 
 /**
- * Class ServerRequestWrapper
+ * ServerRequest wrapper
  *
  * @package Hail\Http
  *
@@ -47,6 +47,7 @@ class Request
     public function __construct(ServerRequestInterface $serverRequest)
     {
         $this->serverRequest = $serverRequest;
+
         $this->input = Arrays::dot();
     }
 
@@ -113,7 +114,7 @@ class Request
 
             $values = $this->serverRequest->getQueryParams();
             if ($this->serverRequest->getMethod() !== 'GET') {
-                $values = array_replace_recursive($values,
+                $values = array_replace($values,
                     $this->serverRequest->getParsedBody()
                 );
             }
@@ -153,6 +154,20 @@ class Request
         }
 
         return $found;
+    }
+
+    /**
+     * Delete from input
+     *
+     * @param string $name
+     */
+    public function delete(string $name): void
+    {
+        if (!$this->all) {
+            $this->inputs();
+        }
+
+        $this->input->delete($name);
     }
 
     public function request(string $name = null)

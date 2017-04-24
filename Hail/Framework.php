@@ -150,4 +150,28 @@ class Framework
 
 		return static::$container->get(strtolower($name));
 	}
+
+    /**
+     * @param string      $root
+     * @param string|null $path
+     *
+     * @return string
+     */
+    public static function path(string $root, string $path = null): string
+    {
+        if ($path === null || $path === '') {
+            return $root;
+        }
+
+        if (strpos($path, '..') !== false) {
+            throw new \InvalidArgumentException('Unable to get a directory higher than ROOT');
+        }
+
+        $path = str_replace('\\', '/', $path);
+        if ($path[0] === '/') {
+            $path = ltrim($path, '/');
+        }
+
+        return realpath($root . $path) ?: $root . $path;
+    }
 }

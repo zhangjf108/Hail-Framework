@@ -50,10 +50,7 @@ class Route implements MiddlewareInterface
 
         $handler = $result['handler'];
         if ($handler instanceof \Closure) {
-            return $this->container->call($result['handler'], [
-                $request->withAttribute('params', $result['params']),
-                $this->container,
-            ]);
+            return $this->container->call($result['handler']);
         }
 
         $handler['params'] = $result['params'];
