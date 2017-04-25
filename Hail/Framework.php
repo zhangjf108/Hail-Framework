@@ -30,7 +30,7 @@ if (__DIR__ !== HAIL_PATH . 'Hail') {
 require __DIR__ . '/helpers.php';
 
 /**
- * Class Bootstrap
+ * Class Framework
  *
  * @package Hail
  *

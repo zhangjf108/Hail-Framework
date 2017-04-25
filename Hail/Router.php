@@ -14,6 +14,17 @@ use Hail\Util\Serialize;
  *
  * @package Hail
  * @author  Hao Feng <flyinghail@msn.com>
+ *
+ * @method head(string $route, array | callable $handler)
+ * @method get(string $route, array | callable $handler)
+ * @method post(string $route, array | callable $handler)
+ * @method put(string $route, array | callable $handler)
+ * @method patch(string $route, array | callable $handler)
+ * @method delete(string $route, array | callable $handler)
+ * @method pruge(string $route, array | callable $handler)
+ * @method options(string $route, array | callable $handler)
+ * @method trace(string $route, array | callable $handler)
+ * @method connect(string $route, array | callable $handler)
  */
 class Router
 {
@@ -78,9 +89,9 @@ class Router
     protected function addRoutes($config)
     {
         $sign = sha1(Serialize::encode($config));
-        $check = static::optimizeGet('routesSign');
+        $check = static::optimizeGet('hail-routes-sign');
         if ($check === $sign) {
-            $this->routes = static::optimizeGet('routes');
+            $this->routes = static::optimizeGet('hail-routes');
 
             return;
         }
@@ -96,12 +107,10 @@ class Router
                 } else {
                     $methods = $rule['methods'] ?? $methods;
 
-                    if (!empty($rule['controller'])) {
-                        $handler['controller'] = $rule['controller'];
-                    }
-
-                    if (!empty($rule['action'])) {
-                        $handler['action'] = $rule['action'];
+                    foreach (['controller', 'action', 'params'] as $v) {
+                        if (!empty($rule[$v])) {
+                            $handler[$v] = $rule[$v];
+                        }
                     }
                 }
 
@@ -110,8 +119,8 @@ class Router
         }
 
         static::optimizeSet([
-            'routes' => $this->routes,
-            'routesSign' => $sign,
+            'hail-routes' => $this->routes,
+            'hail-routes-sign' => $sign,
         ]);
     }
 
@@ -219,10 +228,14 @@ class Router
             $handler = $route['methods'][$method];
 
             if (!$handler instanceof \Closure) {
+                if (isset($handler['params'])) {
+                    $params += $handler['params'];
+                }
+
                 $handler = [
-                    'app' => $handler['app'] ?? $params['app'] ?? '',
-                    'controller' => $handler['controller'] ?? $params['controller'] ?? '',
-                    'action' => $handler['action'] ?? $params['action'] ?? '',
+                    'app' => $handler['app'] ?? $params['app'] ?? null,
+                    'controller' => $handler['controller'] ?? $params['controller'] ?? null,
+                    'action' => $handler['action'] ?? $params['action'] ?? null,
                 ];
             }
 
@@ -243,12 +256,34 @@ class Router
         return $this->result = $result;
     }
 
-    public function getResult()
+    /**
+     * @return array
+     */
+    public function getResult(): array
     {
         return $this->result;
     }
 
-    public function getRoutes()
+    /**
+     * @return array
+     */
+    public function getParams(): array
+    {
+        return $this->result['params'] ?? [];
+    }
+
+    /**
+     * @return array|\Closure
+     */
+    public function getHandler()
+    {
+        return $this->result['handler'];
+    }
+
+    /**
+     * @return array
+     */
+    public function getRoutes(): array
     {
         return $this->routes;
     }

@@ -158,18 +158,6 @@ class Dispatcher implements MiddlewareInterface
     }
 
     /**
-     * Add last middleware to next repeat process
-     */
-    public function repeat(): void
-    {
-        if (!isset($this->middleware[$this->index])) {
-            return;
-        }
-
-        $this->after($this->middleware[$this->index]);
-    }
-
-    /**
      * Add middleware to next process
      *
      * @param $middleware

@@ -2,28 +2,12 @@
 
 namespace Hail\Http\Middleware;
 
-use Hail\Container\Container;
-use Hail\Http\Factory;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Http\ServerMiddleware\MiddlewareInterface;
 use Psr\Http\ServerMiddleware\DelegateInterface;
 
-class Route implements MiddlewareInterface
+class Route extends Controller
 {
-    /**
-     * @var Container
-     */
-    private $container;
-
-    /**
-     * @param Container  $container
-     */
-    public function __construct(Container $container)
-    {
-        $this->container = $container;
-    }
-
     /**
      * Process a server request and return a response.
      *
@@ -34,33 +18,15 @@ class Route implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, DelegateInterface $delegate)
     {
-        /**
-         * @var \Hail\Router $router
-         */
-        $router = $this->container->get('router');
-
-        $result = $router->dispatch(
+        $handler = $this->request->dispatch(
             $request->getMethod(),
             $request->getUri()->getPath()
         );
 
-        if (isset($result['error'])) {
-            return Factory::response($result['error']);
+        if ($handler instanceof ResponseInterface) {
+            return $handler;
         }
 
-        $handler = $result['handler'];
-        if ($handler instanceof \Closure) {
-            return $this->container->call($result['handler']);
-        }
-
-        $handler['params'] = $result['params'];
-
-        /**
-         * @var \Hail\Dispatcher $dispatcher
-         */
-        $dispatcher = $this->container->get('dispatcher');
-        $dispatcher->current($handler);
-
-		return $delegate->process($request);
-	}
+        return $this->handle($handler);
+    }
 }

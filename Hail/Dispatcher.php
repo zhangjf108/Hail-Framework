@@ -4,6 +4,7 @@ namespace Hail;
 
 use Hail\Http\Dispatcher as HttpDispatcher;
 use Hail\Facade\Output;
+use Hail\Http\Middleware\Controller;
 
 /**
  * Class Dispatcher
@@ -16,80 +17,29 @@ class Dispatcher
      */
     protected $dispatcher;
 
-    protected $init = false;
-    protected $forwards = [];
-
     /**
-     * @var string
+     * @var Request
      */
-    protected $application = '';
+    protected $request;
 
-    /**
-     * @var string
-     */
-    protected $controller = 'Index';
-
-    /**
-     * @var string
-     */
-    protected $action;
-
-    /**
-     * @var array
-     */
-    protected $params;
-
-    public function __construct(HttpDispatcher $dispatcher)
+    public function __construct(HttpDispatcher $dispatcher, Request $request)
     {
         $this->dispatcher = $dispatcher;
+        $this->request = $request;
     }
 
-    public function initialized(): bool
+    public function template(): string
     {
-        return $this->init;
-    }
+        $handler = $this->request->handler();
 
-    public function current(array $handler)
-    {
-        if (isset($handler['app'])) {
-            $this->application = ucfirst($handler['app']);
+        if ($handler instanceof \Closure) {
+            $template = $this->request->route('template');
+            if ($template === null) {
+                throw new \LogicException('Template name not defined!');
+            }
         }
 
-        if (isset($handler['controller'])) {
-            $this->controller = ucfirst($handler['controller']);
-        }
-
-        $this->action = isset($handler['action']) ? lcfirst($handler['action']) : 'index';
-        $this->params = $handler['params'] ?? [];
-
-        if (!$this->init) {
-            $this->init = true;
-        }
-    }
-
-    public function getApplication(): string
-    {
-        return $this->application;
-    }
-
-    public function getController(): string
-    {
-        return $this->controller;
-    }
-
-    public function getAction(): string
-    {
-        return $this->action;
-    }
-
-    public function getParam(string $key)
-    {
-        return $this->params[$key] ?? null;
-    }
-
-    public function getParams(): array
-    {
-        return $this->params;
+        return ltrim($handler['app'] . '/' . $handler['controller'] . '/' . $handler['action'], '/');
     }
 
     public function output($type, $return)
@@ -121,26 +71,17 @@ class Dispatcher
                 break;
 
             case 'template':
-                $name = $return['_template_'] ??
-                    $this->getApplication() . '/' . $this->getController() . '/' . $this->getAction();
-                Output::template()->send($name, $return);
+                Output::template()->send($this->template(), $return);
                 break;
         }
     }
 
     public function forward($to)
     {
-        if ($this->init) {
-            $this->forwards[] = [
-                'app' => $this->application,
-                'controller' => $this->controller,
-                'action' => $this->action,
-                'params' => $this->params,
-            ];
-        }
+        $this->request->routes($to['params'] ?? null);
+        $this->request->handler($to);
 
-        $this->current($to);
-        $this->dispatcher->repeat();
+        $this->dispatcher->after(Controller::class);
 
         return null;
     }

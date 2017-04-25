@@ -86,7 +86,7 @@ app:
 
 request:
   class|to: Hail\Request
-  arguments: ["@http.request"]
+  arguments: ["@http.request", "@router"]
 
 dispatcher:
   class|to: Hail\Dispatcher
@@ -109,21 +109,19 @@ Hail\Http\Middleware\ClientIp:
   calls:
     proxy: [CONFIG.env.proxies]
 Hail\Http\Middleware\Cors:
-  arguments: ["CONFIG.cors"]
+  arguments: [CONFIG.cors]
 Hail\Http\Middleware\Payload: []
 Hail\Http\Middleware\ScriptPath: []
 Hail\Http\Middleware\TrailingSlash: []
 Hail\Http\Middleware\ContentType: []
-Hail\Http\Middleware\Encoding: []
-Hail\Http\Middleware\Language:
-  arguments: ["CONFIG.env.languages"]
+Hail\Http\Middleware\ContentEncoding: []
+Hail\Http\Middleware\ContentLanguage:
+  arguments: [CONFIG.env.languages]
 
 # Hail Framework middleware
 Hail\Http\Middleware\I18n:
   arguments: ["@container"]
 Hail\Http\Middleware\Route:
-  arguments: ["@container"]
+  arguments: ["@container", "@request"]
 Hail\Http\Middleware\Controller:
-  arguments: ["@container"]
-
-
+  arguments: ["@container", "@request"]

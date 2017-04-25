@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Hail;
 
+use Hail\Http\Factory;
 use Hail\Util\{
     ArrayDot, Arrays
 };
 use Psr\Http\Message\{
-    ServerRequestInterface,
-    UploadedFileInterface,
-    UriInterface
+    ResponseInterface, ServerRequestInterface, UploadedFileInterface, UriInterface
 };
 
 /**
@@ -40,13 +39,36 @@ class Request
     protected $all = false;
 
     /**
+     * @var Router
+     */
+    protected $router;
+
+    /**
+     * @var array
+     */
+    protected $routes = [];
+
+    /**
+     * @var array|\Closure
+     */
+    protected $handler;
+
+    protected static $defaultHandler = [
+        'app' => null,
+        'controller' => 'Index',
+        'action' => 'index',
+    ];
+
+    /**
      * ServerRequestWrapper constructor.
      *
      * @param ServerRequestInterface $serverRequest
+     * @param Router                 $router
      */
-    public function __construct(ServerRequestInterface $serverRequest)
+    public function __construct(ServerRequestInterface $serverRequest, Router $router)
     {
         $this->serverRequest = $serverRequest;
+        $this->router = $router;
 
         $this->input = Arrays::dot();
     }
@@ -244,5 +266,73 @@ class Request
     public function secure(): bool
     {
         return $this->serverRequest->getUri()->getScheme() === 'https';
+    }
+
+    /**
+     * @param string $name
+     * @param mixed  $value
+     *
+     * @return mixed|null
+     */
+    public function route(string $name, $value = null)
+    {
+        if ($value === null) {
+            return $this->routes[$name] ?? null;
+        }
+
+        return $this->routes[$name] = $value;
+    }
+
+    /**
+     * @param array|null $array
+     *
+     * @return array
+     */
+    public function routes(array $array = null): array
+    {
+        if ($array === null) {
+            return $this->routes;
+        }
+
+        return $this->routes = $array;
+    }
+
+    /**
+     * @param array|null $handler
+     *
+     * @return array|\Closure
+     */
+    public function handler(array $handler = null)
+    {
+        if ($handler !== null) {
+            if ($handler instanceof \Closure) {
+                $this->handler = $handler;
+            } else {
+                foreach (static::$defaultHandler as $k => $v) {
+                    $this->handler[$k] = $handler[$k] ?? $v;
+                }
+            }
+        }
+
+        return $this->handler;
+    }
+
+    /**
+     * @param string $method
+     * @param string $url
+     *
+     * @return ResponseInterface|array
+     */
+    public function dispatch(string $method, string $url)
+    {
+        $result = $this->router->dispatch($method, $url);
+
+        if (isset($result['error'])) {
+            return Factory::response($result['error']);
+        }
+
+        $this->routes = $result['params'] ?? [];
+
+        return $this->handler($result['handler']);
     }
 }
