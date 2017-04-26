@@ -36,19 +36,22 @@ class Route implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, DelegateInterface $delegate)
     {
-        $handler = $this->app->dispatch(
-            $request->getMethod(),
-            $request->getUri()->getPath()
-        );
-
-        if ($handler instanceof ResponseInterface) {
-            return $handler;
-        }
-
         try {
+            $handler = $this->app->dispatch(
+                $request->getMethod(),
+                $request->getUri()->getPath()
+            );
+
+            if ($handler instanceof ResponseInterface) {
+                return $handler;
+            }
+
             return $this->app->handle($handler);
         } catch (BadRequestException $e) {
-            throw HttpErrorException::create($e->getCode(), [], $e);
+            throw HttpErrorException::create($e->getCode(), [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+            ], $e);
         }
     }
 }

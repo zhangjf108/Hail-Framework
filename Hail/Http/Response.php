@@ -3,10 +3,12 @@
 namespace Hail\Http;
 
 use Hail\Application;
+use Hail\Exception\BadRequestException;
 use Hail\Facade\Output;
 
 /**
  * Class Dispatcher
+ *
  * @package Hail
  */
 class Response
@@ -16,28 +18,17 @@ class Response
      */
     protected $app;
 
-    /**
-     * @var Request
-     */
-    protected $request;
-
-    public function __construct(Application $app, Request $request = null)
+    public function __construct(Application $app)
     {
         $this->app = $app;
-
-        if ($request === null) {
-            $request = $this->app->get('request');
-        }
-
-        $this->request = $request;
     }
 
     public function template(): string
     {
-        $handler = $this->request->handler();
+        $handler = $this->app->handler();
 
         if ($handler instanceof \Closure) {
-            $template = $this->request->route('template');
+            $template = $this->app->param('template');
             if ($template === null) {
                 throw new \LogicException('Template name not defined!');
             }
@@ -80,13 +71,18 @@ class Response
         }
     }
 
-    public function forward($to)
+    /**
+     * @param array $to
+     *
+     * @return \Psr\Http\Message\ResponseInterface
+     * @throws BadRequestException
+     */
+    public function forward(array $to)
     {
-        $this->request->routes($to['params'] ?? null);
-        $this->request->handler($to);
+        $this->app->params($to['params'] ?? null);
 
         return $this->app->handle(
-            $this->request->handler($to)
+            $this->app->handler($to)
         );
     }
 

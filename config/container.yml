@@ -78,7 +78,7 @@ request: Hail\Http\Request
 
 response:
   class|to: Hail\Http\Response
-  arguments: ["@app", "@request"]
+  arguments: ["@app"]
 
 lib:
   class: Hail\Util\ObjectFactory

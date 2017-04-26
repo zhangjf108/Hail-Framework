@@ -38,22 +38,6 @@ class Request
     protected $all = false;
 
     /**
-     * @var array
-     */
-    protected $routes = [];
-
-    /**
-     * @var array|\Closure
-     */
-    protected $handler;
-
-    protected static $defaultHandler = [
-        'app' => null,
-        'controller' => 'Index',
-        'action' => 'index',
-    ];
-
-    /**
      * ServerRequestWrapper constructor.
      */
     public function __construct()
@@ -254,58 +238,5 @@ class Request
     public function secure(): bool
     {
         return $this->serverRequest->getUri()->getScheme() === 'https';
-    }
-
-    /**
-     * Get param from router
-     *
-     * @param string $name
-     * @param mixed  $value
-     *
-     * @return mixed|null
-     */
-    public function route(string $name, $value = null)
-    {
-        if ($value === null) {
-            return $this->routes[$name] ?? null;
-        }
-
-        return $this->routes[$name] = $value;
-    }
-
-    /**
-     * Get all params from router
-     *
-     * @param array|null $array
-     *
-     * @return array
-     */
-    public function routes(array $array = null): array
-    {
-        if ($array === null) {
-            return $this->routes;
-        }
-
-        return $this->routes = $array;
-    }
-
-    /**
-     * @param array|null $handler
-     *
-     * @return array|\Closure
-     */
-    public function handler(array $handler = null)
-    {
-        if ($handler !== null) {
-            if ($handler instanceof \Closure) {
-                $this->handler = $handler;
-            } else {
-                foreach (static::$defaultHandler as $k => $v) {
-                    $this->handler[$k] = $handler[$k] ?? $v;
-                }
-            }
-        }
-
-        return $this->handler;
     }
 }

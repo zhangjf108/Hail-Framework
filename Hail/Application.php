@@ -3,12 +3,12 @@
 namespace Hail;
 
 use Hail\Container\Container;
+use Hail\Http\{
+    Request, Factory,
+    HttpEvents, Event\DispatcherEvent,
+    Server, Emitter\EmitterInterface
+};
 use Hail\Exception\BadRequestException;
-use Hail\Http\Factory;
-use Hail\Http\HttpEvents;
-use Hail\Http\Event\DispatcherEvent;
-use Hail\Http\Exception\HttpErrorException;
-use Hail\Http\Request;
 use Psr\Http\Message\ResponseInterface;
 
 class Application
@@ -16,7 +16,28 @@ class Application
     /**
      * @var Container
      */
-    private $container;
+    protected $container;
+
+    /**
+     * @var Server
+     */
+    protected $server;
+
+    /**
+     * @var array
+     */
+    protected $params = [];
+
+    /**
+     * @var array|\Closure
+     */
+    protected $handler;
+
+    protected static $default = [
+        'app' => null,
+        'controller' => 'Index',
+        'action' => 'index',
+    ];
 
     /**
      * Application constructor.
@@ -61,12 +82,22 @@ class Application
     {
         $this->event(HttpEvents::DISPATCHER, [$this, 'changeRequest']);
 
-        $server = Http\Server::createServer(
+        $this->server = Http\Server::createServer(
             $this->config('middleware'),
             $_SERVER, $_GET, $_POST, $_COOKIE, $_FILES
         );
 
-        $server->listen($this->container);
+        $this->server->listen($this->container);
+    }
+
+    /**
+     * Set alternate response emitter to use.
+     *
+     * @param EmitterInterface $emitter
+     */
+    public function emitter(EmitterInterface $emitter): void
+    {
+        $this->server->setEmitter($emitter);
     }
 
     public function changeRequest(DispatcherEvent $event): void
@@ -101,6 +132,7 @@ class Application
      * @param string $url
      *
      * @return ResponseInterface|array
+     * @throws BadRequestException
      */
     public function dispatch(string $method, string $url)
     {
@@ -110,15 +142,12 @@ class Application
         $result = $router->dispatch($method, $url);
 
         if (isset($result['error'])) {
-            return Factory::response($result['error']);
+            throw new BadRequestException('Router not found', $result['error']);
         }
 
-        /** @var Request $request */
-        $request = $this->get('request');
+        $this->params($result['params'] ?? []);
 
-        $request->routes($result['params'] ?? []);
-
-        return $request->handler($result['handler']);
+        return $this->handler($result['handler']);
     }
 
     /**
@@ -194,5 +223,58 @@ class Application
         $class = $handler['controller'] ?? 'Index';
 
         return strpos($class, $namespace) === 0 ? $class : $namespace . '\\' . ucfirst($class);
+    }
+
+    /**
+     * Get param from router
+     *
+     * @param string $name
+     * @param mixed  $value
+     *
+     * @return mixed|null
+     */
+    public function param(string $name, $value = null)
+    {
+        if ($value === null) {
+            return $this->params[$name] ?? null;
+        }
+
+        return $this->params[$name] = $value;
+    }
+
+    /**
+     * Get all params from router
+     *
+     * @param array|null $array
+     *
+     * @return array
+     */
+    public function params(array $array = null): array
+    {
+        if ($array === null) {
+            return $this->params;
+        }
+
+        return $this->params = $array;
+    }
+
+    /**
+     * @param array|null $handler
+     *
+     * @return array|\Closure
+     */
+    public function handler(array $handler = null)
+    {
+        if ($handler !== null) {
+            if ($handler instanceof \Closure) {
+                $this->handler = $handler;
+            } else {
+                foreach (static::$default as $k => $v) {
+                    $this->handler[$k] = $handler[$k] ?? $v;
+                }
+            }
+        }
+
+        return $this->handler;
     }
 }
