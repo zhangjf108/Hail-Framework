@@ -5,6 +5,8 @@ namespace Hail\Http;
 use Hail\Application;
 use Hail\Exception\BadRequestException;
 use Hail\Facade\Output;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\UriInterface;
 
 /**
  * Class Dispatcher
@@ -23,18 +25,50 @@ class Response
         $this->app = $app;
     }
 
-    public function template(): string
+    /**
+     * @param string|UriInterface $uri
+     * @param int                 $status
+     * @param array               $headers
+     *
+     * @return ResponseInterface
+     */
+    public function redirect($uri, $status = 302, array $headers = []): ResponseInterface
     {
-        $handler = $this->app->handler();
-
-        if ($handler instanceof \Closure) {
-            $template = $this->app->param('template');
-            if ($template === null) {
-                throw new \LogicException('Template name not defined!');
-            }
+        if (!is_string($uri) && !$uri instanceof UriInterface) {
+            throw new \InvalidArgumentException('Uri MUST be a string or Psr\Http\Message\UriInterface instance; received "' .
+                (is_object($uri) ? get_class($uri) : gettype($uri)) . '"');
         }
 
-        return ltrim($handler['app'] . '/' . $handler['controller'] . '/' . $handler['action'], '/');
+        $headers['Location'] = [(string) $uri];
+
+        return Factory::response($status, null, $headers);
+    }
+
+    /**
+     * Get or set template name
+     *
+     * @param string|null $name null use for get name
+     *
+     * @return string
+     */
+    public function template(string $name = null): string
+    {
+        if ($name === null) {
+            $handler = $this->app->handler();
+
+            if ($handler instanceof \Closure) {
+                $template = $this->app->param('template');
+                if ($template === null) {
+                    throw new \LogicException('Controller not defined template name!');
+                }
+
+                return $template;
+            }
+
+            return ltrim($handler['app'] . '/' . $handler['controller'] . '/' . $handler['action'], '/');
+        }
+
+        return $this->app->param('template', $name);
     }
 
     public function output($type, $return)
