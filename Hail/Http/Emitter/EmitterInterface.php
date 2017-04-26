@@ -27,6 +27,7 @@ interface EmitterInterface
      * response; e.g., if headers have already been sent.
      *
      * @param ResponseInterface $response
+     * @param null|int          $maxBufferLevel Maximum output buffering level to unwrap.
      */
-    public function emit(ResponseInterface $response);
+    public function emit(ResponseInterface $response, $maxBufferLevel = null);
 }

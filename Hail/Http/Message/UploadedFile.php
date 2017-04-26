@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Hail\Http;
+namespace Hail\Http\Message;
 
+use Hail\Http\Helpers;
+use Hail\Http\Factory;
 use RuntimeException;
 use InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;

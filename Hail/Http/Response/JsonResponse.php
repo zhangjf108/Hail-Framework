@@ -11,7 +11,7 @@ namespace Hail\Http\Response;
 
 use InvalidArgumentException;
 use Hail\Http\{
-	Response, Factory, Helpers
+	Message\Response, Factory, Helpers
 };
 
 /**

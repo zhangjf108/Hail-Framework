@@ -156,24 +156,4 @@ class Dispatcher implements MiddlewareInterface
 
         return $middleware;
     }
-
-    /**
-     * Add middleware to next process
-     *
-     * @param $middleware
-     */
-    public function after($middleware): void
-    {
-        array_splice($this->middleware, $this->index + 1, 0, $middleware);
-    }
-
-    /**
-     * Add middleware to the queue end
-     *
-     * @param $middleware
-     */
-    public function append($middleware): void
-    {
-        $this->middleware[] = $middleware;
-    }
 }

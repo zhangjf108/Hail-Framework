@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Hail\Http;
+namespace Hail\Http\Message;
 
 use Psr\Http\Message\StreamInterface;
 

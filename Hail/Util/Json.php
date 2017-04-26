@@ -17,7 +17,7 @@ class Json
 	public static function encode($value, $options = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION)
 	{
 		$json = json_encode($value, $options);
-		if ($error = json_last_error()) {
+		if (JSON_ERROR_NONE !== ($error = json_last_error())) {
 			throw new JsonException(json_last_error_msg(), $error);
 		}
 
@@ -36,7 +36,7 @@ class Json
 	public static function decode(string $json, $asArray = true)
 	{
 		$decode = json_decode($json, $asArray, 512, JSON_BIGINT_AS_STRING);
-		if ($error = json_last_error()) {
+		if (JSON_ERROR_NONE !== ($error = json_last_error())) {
 			throw new JsonException(json_last_error_msg(), $error);
 		}
 

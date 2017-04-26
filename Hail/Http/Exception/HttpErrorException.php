@@ -2,7 +2,7 @@
 
 namespace Hail\Http\Exception;
 
-use Hail\Http\Response;
+use Hail\Http\Message\Response;
 
 class HttpErrorException extends \Exception
 {

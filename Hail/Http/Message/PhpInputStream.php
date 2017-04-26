@@ -1,6 +1,6 @@
 <?php
 
-namespace Hail\Http;
+namespace Hail\Http\Message;
 
 
 /**

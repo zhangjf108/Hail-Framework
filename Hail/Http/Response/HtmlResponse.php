@@ -12,7 +12,7 @@ namespace Hail\Http\Response;
 use InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;
 use Hail\Http\{
-	Response, Factory, Helpers
+	Message\Response, Factory, Helpers
 };
 
 /**

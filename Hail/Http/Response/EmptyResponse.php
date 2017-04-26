@@ -9,7 +9,7 @@
 
 namespace Hail\Http\Response;
 
-use Hail\Http\Response;
+use Hail\Http\Message\Response;
 
 /**
  * A class representing empty HTTP responses.

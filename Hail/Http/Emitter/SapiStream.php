@@ -14,126 +14,127 @@ use RuntimeException;
 
 class SapiStream implements EmitterInterface
 {
-	use SapiTrait;
+    use SapiTrait;
 
-	/**
-	 * Emits a response for a PHP SAPI environment.
-	 *
-	 * Emits the status line and headers via the header() function, and the
-	 * body content via the output buffer.
-	 *
-	 * @param ResponseInterface $response
-	 * @param int               $maxBufferLength Maximum output buffering size for each iteration
-	 */
-	public function emit(ResponseInterface $response, $maxBufferLength = 8192)
-	{
-		if (headers_sent()) {
-			throw new RuntimeException('Unable to emit response; headers already sent');
-		}
+    /**
+     * Emits a response for a PHP SAPI environment.
+     *
+     * Emits the status line and headers via the header() function, and the
+     * body content via the output buffer.
+     *
+     * @param ResponseInterface $response
+     * @param null|int          $maxBufferLevel  Maximum output buffering level to unwrap.
+     * @param int               $maxBufferLength Maximum output buffering size for each iteration
+     */
+    public function emit(ResponseInterface $response, $maxBufferLevel = null, $maxBufferLength = 8192)
+    {
+        if (headers_sent()) {
+            throw new RuntimeException('Unable to emit response; headers already sent');
+        }
 
-		$response = $this->injectContentLength($response);
+        $response = $this->injectContentLength($response);
 
-		$this->emitStatusLine($response);
-		$this->emitHeaders($response);
-		$this->flush();
+        $this->emitStatusLine($response);
+        $this->emitHeaders($response);
+        $this->flush($maxBufferLevel);
 
-		$range = $this->parseContentRange($response->getHeaderLine('Content-Range'));
+        $range = $this->parseContentRange($response->getHeaderLine('Content-Range'));
 
-		if (is_array($range) && $range[0] === 'bytes') {
-			$this->emitBodyRange($range, $response, $maxBufferLength);
+        if (is_array($range) && $range[0] === 'bytes') {
+            $this->emitBodyRange($range, $response, $maxBufferLength);
 
-			return;
-		}
+            return;
+        }
 
-		$this->emitBody($response, $maxBufferLength);
-	}
+        $this->emitBody($response, $maxBufferLength);
+    }
 
-	/**
-	 * Emit the message body.
-	 *
-	 * @param ResponseInterface $response
-	 * @param int               $maxBufferLength
-	 */
-	private function emitBody(ResponseInterface $response, $maxBufferLength)
-	{
-		$body = $response->getBody();
+    /**
+     * Emit the message body.
+     *
+     * @param ResponseInterface $response
+     * @param int               $maxBufferLength
+     */
+    private function emitBody(ResponseInterface $response, $maxBufferLength)
+    {
+        $body = $response->getBody();
 
-		if ($body->isSeekable()) {
-			$body->rewind();
-		}
+        if ($body->isSeekable()) {
+            $body->rewind();
+        }
 
-		if (!$body->isReadable()) {
-			echo $body;
+        if (!$body->isReadable()) {
+            echo $body;
 
-			return;
-		}
+            return;
+        }
 
-		while (!$body->eof()) {
-			echo $body->read($maxBufferLength);
-		}
-	}
+        while (!$body->eof()) {
+            echo $body->read($maxBufferLength);
+        }
+    }
 
-	/**
-	 * Emit a range of the message body.
-	 *
-	 * @param array             $range
-	 * @param ResponseInterface $response
-	 * @param int               $maxBufferLength
-	 */
-	private function emitBodyRange(array $range, ResponseInterface $response, $maxBufferLength)
-	{
-		[$unit, $first, $last] = $range;
+    /**
+     * Emit a range of the message body.
+     *
+     * @param array             $range
+     * @param ResponseInterface $response
+     * @param int               $maxBufferLength
+     */
+    private function emitBodyRange(array $range, ResponseInterface $response, $maxBufferLength)
+    {
+        [$unit, $first, $last] = $range;
 
-		$body = $response->getBody();
+        $body = $response->getBody();
 
-		$length = $last - $first + 1;
+        $length = $last - $first + 1;
 
-		if ($body->isSeekable()) {
-			$body->seek($first);
+        if ($body->isSeekable()) {
+            $body->seek($first);
 
-			$first = 0;
-		}
+            $first = 0;
+        }
 
-		if (!$body->isReadable()) {
-			echo substr($body->getContents(), $first, $length);
+        if (!$body->isReadable()) {
+            echo substr($body->getContents(), $first, $length);
 
-			return;
-		}
+            return;
+        }
 
-		$remaining = $length;
+        $remaining = $length;
 
-		while ($remaining >= $maxBufferLength && !$body->eof()) {
-			$contents = $body->read($maxBufferLength);
-			$remaining -= strlen($contents);
+        while ($remaining >= $maxBufferLength && !$body->eof()) {
+            $contents = $body->read($maxBufferLength);
+            $remaining -= strlen($contents);
 
-			echo $contents;
-		}
+            echo $contents;
+        }
 
-		if ($remaining > 0 && !$body->eof()) {
-			echo $body->read($remaining);
-		}
-	}
+        if ($remaining > 0 && !$body->eof()) {
+            echo $body->read($remaining);
+        }
+    }
 
-	/**
-	 * Parse content-range header
-	 * http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.16
-	 *
-	 * @param string $header
-	 *
-	 * @return false|array [unit, first, last, length]; returns false if no
-	 *     content range or an invalid content range is provided
-	 */
-	private function parseContentRange($header)
-	{
-		if (preg_match('/(?P<unit>[\w]+)\s+(?P<first>\d+)-(?P<last>\d+)\/(?P<length>\d+|\*)/', $header, $matches)) {
-			return [
-				$matches['unit'],
-				(int) $matches['first'],
-				(int) $matches['last'],
-				$matches['length'] === '*' ? '*' : (int) $matches['length'],
-			];
-		}
+    /**
+     * Parse content-range header
+     * http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.16
+     *
+     * @param string $header
+     *
+     * @return false|array [unit, first, last, length]; returns false if no
+     *     content range or an invalid content range is provided
+     */
+    private function parseContentRange($header)
+    {
+        if (preg_match('/(?P<unit>[\w]+)\s+(?P<first>\d+)-(?P<last>\d+)\/(?P<length>\d+|\*)/', $header, $matches)) {
+            return [
+                $matches['unit'],
+                (int) $matches['first'],
+                (int) $matches['last'],
+                $matches['length'] === '*' ? '*' : (int) $matches['length'],
+            ];
+        }
 
-		return false;
-	}
+        return false;
+    }
 }

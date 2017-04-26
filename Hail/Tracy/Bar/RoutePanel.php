@@ -39,7 +39,7 @@ class RoutePanel implements PanelInterface
 	{
 		ob_start(function () {});
 		$router = $this->router;
-		$url = (string) DI::get('http.request')->getUri();
+		$url = (string) DI::get('request')->uri();
 		$sorted = array(
 			'matched', 'url', 'error', 'allowed', 'route', 'params', 'handler'
 		);

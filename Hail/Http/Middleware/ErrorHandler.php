@@ -87,6 +87,7 @@ class ErrorHandler implements MiddlewareInterface
      * @param DelegateInterface      $delegate
      *
      * @return ResponseInterface
+     * @throws \Throwable
      */
     public function process(ServerRequestInterface $request, DelegateInterface $delegate)
     {

@@ -4,144 +4,308 @@ declare(strict_types=1);
 
 namespace Hail\Http;
 
-use InvalidArgumentException;
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\StreamInterface;
-use Psr\Http\Message\UriInterface;
+use Hail\Util\{
+    ArrayDot, Arrays
+};
+use Psr\Http\Message\{
+    ServerRequestInterface, UploadedFileInterface, UriInterface
+};
 
 /**
- * @author Michael Dowling and contributors to guzzlehttp/psr7
- * @author Tobias Nyholm <tobias.nyholm@gmail.com>
+ * ServerRequest wrapper
+ *
+ * @package Hail\Http
+ *
+ * @author  Hao Feng <flyinghail@msn.com>
  */
-class Request implements RequestInterface
+class Request
 {
-	use MessageTrait;
+    /**
+     * @var ServerRequestInterface
+     */
+    protected $serverRequest;
 
-	/** @var string */
-	private $method;
+    /**
+     * @var ArrayDot
+     */
+    protected $input;
 
-	/** @var null|string */
-	private $requestTarget;
+    /**
+     * $this->input fill all params?
+     *
+     * @var bool
+     */
+    protected $all = false;
 
-	/** @var null|UriInterface */
-	private $uri;
+    /**
+     * @var array
+     */
+    protected $routes = [];
 
-	/**
-	 * @param string                               $method  HTTP method
-	 * @param string|UriInterface                  $uri     URI
-	 * @param array                                $headers Request headers
-	 * @param string|null|resource|StreamInterface $body    Request body
-	 * @param string                               $version Protocol version
-	 */
-	public function __construct(
-		string $method,
-		$uri,
-		array $headers = [],
-		$body = null,
-		string $version = '1.1'
-	)
-	{
-		if (!($uri instanceof UriInterface)) {
-			$uri = new Uri($uri);
-		}
+    /**
+     * @var array|\Closure
+     */
+    protected $handler;
 
-		$this->method = $method;
-		$this->uri = $uri;
-		$this->setHeaders($headers);
-		$this->protocol = $version;
+    protected static $defaultHandler = [
+        'app' => null,
+        'controller' => 'Index',
+        'action' => 'index',
+    ];
 
-		if (!$this->hasHeader('Host')) {
-			$this->updateHostFromUri();
-		}
+    /**
+     * ServerRequestWrapper constructor.
+     */
+    public function __construct()
+    {
+        $this->input = Arrays::dot();
+    }
 
-		if ($body !== '' && $body !== null) {
-			$this->stream = Factory::stream($body);
-		}
-	}
+    /**
+     * @param ServerRequestInterface $serverRequest
+     */
+    public function setServerRequest(ServerRequestInterface $serverRequest): void
+    {
+        if ($this->serverRequest === $serverRequest) {
+            return;
+        }
 
-	public function getRequestTarget(): string
-	{
-		if ($this->requestTarget !== null) {
-			return $this->requestTarget;
-		}
+        $this->serverRequest = $serverRequest;
 
-		$target = $this->uri->getPath();
-		if ($target === '') {
-			$target = '/';
-		}
-		if ($this->uri->getQuery() !== '') {
-			$target .= '?' . $this->uri->getQuery();
-		}
+        if ($this->input->all() !== []) {
+            $this->input->replace([]);
+            $this->all = false;
+        }
+    }
 
-		return $target;
-	}
+    /**
+     * @return string
+     */
+    public function protocol(): string
+    {
+        return $this->serverRequest->getProtocolVersion();
+    }
 
-	public function withRequestTarget($requestTarget): self
-	{
-		if (preg_match('#\s#', $requestTarget)) {
-			throw new InvalidArgumentException('Invalid request target provided; cannot contain whitespace');
-		}
+    /**
+     * @return string
+     */
+    public function method(): string
+    {
+        return $this->serverRequest->getMethod();
+    }
 
-		$new = clone $this;
-		$new->requestTarget = $requestTarget;
+    /**
+     * @return string
+     */
+    public function target(): string
+    {
+        return $this->serverRequest->getRequestTarget();
+    }
 
-		return $new;
-	}
+    /**
+     * @return UriInterface
+     */
+    public function uri(): UriInterface
+    {
+        return $this->serverRequest->getUri();
+    }
 
-	public function getMethod(): string
-	{
-		return $this->method;
-	}
+    /**
+     * @param array|null $values
+     *
+     * @return array
+     */
+    public function inputs(array $values = null): array
+    {
+        if ($values === null) {
+            if (!$this->all) {
+                return $this->input->all();
+            }
 
-	public function withMethod($method): self
-	{
-		$new = clone $this;
-		$new->method = $method;
+            $values = $this->serverRequest->getQueryParams();
+            if ($this->serverRequest->getMethod() !== 'GET') {
+                $values = array_replace($values,
+                    $this->serverRequest->getParsedBody()
+                );
+            }
+            $this->all = true;
+        }
 
-		return $new;
-	}
+        return $this->input->replace($values);
+    }
 
-	public function getUri(): UriInterface
-	{
-		return $this->uri;
-	}
+    /**
+     * @param string $name
+     * @param mixed  $value
+     *
+     * @return mixed
+     */
+    public function input(string $name, $value = null)
+    {
+        if ($value !== null) {
+            !$this->all && $this->inputs();
+            $this->input->set($name, $value);
 
-	public function withUri(UriInterface $uri, $preserveHost = false): self
-	{
-		if ($uri === $this->uri) {
-			return $this;
-		}
+            return $value;
+        }
 
-		$new = clone $this;
-		$new->uri = $uri;
+        if ($this->all || $this->input->has($name)) {
+            return $this->input->get($name);
+        }
 
-		if (!$preserveHost || !$this->hasHeader('Host')) {
-			$new->updateHostFromUri();
-		}
+        if ($this->serverRequest->getMethod() !== 'GET') {
+            $found = $this->request($name) ?? $this->query($name);
+        } else {
+            $found = $this->query($name);
+        }
 
-		return $new;
-	}
+        if ($found !== null) {
+            $this->input->set($name, $found);
+        }
 
-	private function updateHostFromUri(): void
-	{
-		$host = $this->uri->getHost();
+        return $found;
+    }
 
-		if ($host === '') {
-			return;
-		}
+    /**
+     * Delete from input
+     *
+     * @param string $name
+     */
+    public function delete(string $name): void
+    {
+        if (!$this->all) {
+            $this->inputs();
+        }
 
-		if (($port = $this->uri->getPort()) !== null) {
-			$host .= ':' . $port;
-		}
+        $this->input->delete($name);
+    }
 
-		if (isset($this->headerNames['host'])) {
-			$header = $this->headerNames['host'];
-		} else {
-			$header = 'Host';
-			$this->headerNames['host'] = 'Host';
-		}
-		// Ensure Host is the first header.
-		// See: http://tools.ietf.org/html/rfc7230#section-5.4
-		$this->headers = [$header => [$host]] + $this->headers;
-	}
+    public function request(string $name = null)
+    {
+        return Arrays::get($this->serverRequest->getParsedBody(), $name);
+    }
+
+    public function query(string $name = null)
+    {
+        return Arrays::get($this->serverRequest->getQueryParams(), $name);
+    }
+
+    /**
+     * @return array
+     */
+    public function files(): array
+    {
+        return $this->serverRequest->getUploadedFiles();
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return null|UploadedFileInterface
+     */
+    public function file(string $name): ?UploadedFileInterface
+    {
+        return Arrays::get($this->serverRequest->getUploadedFiles(), $name);
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return null|string
+     */
+    public function cookie(string $name): ?string
+    {
+        return $this->serverRequest->getCookieParams()[$name] ?? null;
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return null|string
+     */
+    public function server(string $name): ?string
+    {
+        return $this->serverRequest->getServerParams()[$name] ?? null;
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return mixed
+     */
+    public function attribute(string $name)
+    {
+        return $this->serverRequest->getAttribute($name);
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return string
+     */
+    public function header(string $name): string
+    {
+        return $this->serverRequest->getHeaderLine($name);
+    }
+
+    /**
+     * @return bool
+     */
+    public function secure(): bool
+    {
+        return $this->serverRequest->getUri()->getScheme() === 'https';
+    }
+
+    /**
+     * Get param from router
+     *
+     * @param string $name
+     * @param mixed  $value
+     *
+     * @return mixed|null
+     */
+    public function route(string $name, $value = null)
+    {
+        if ($value === null) {
+            return $this->routes[$name] ?? null;
+        }
+
+        return $this->routes[$name] = $value;
+    }
+
+    /**
+     * Get all params from router
+     *
+     * @param array|null $array
+     *
+     * @return array
+     */
+    public function routes(array $array = null): array
+    {
+        if ($array === null) {
+            return $this->routes;
+        }
+
+        return $this->routes = $array;
+    }
+
+    /**
+     * @param array|null $handler
+     *
+     * @return array|\Closure
+     */
+    public function handler(array $handler = null)
+    {
+        if ($handler !== null) {
+            if ($handler instanceof \Closure) {
+                $this->handler = $handler;
+            } else {
+                foreach (static::$defaultHandler as $k => $v) {
+                    $this->handler[$k] = $handler[$k] ?? $v;
+                }
+            }
+        }
+
+        return $this->handler;
+    }
 }

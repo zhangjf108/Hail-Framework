@@ -54,16 +54,6 @@ template:
   class|to: Hail\Latte\Engine
   arguments: [CONFIG.template]
 
-http.request:
-  factory: Hail\Http\ServerRequest::fromGlobals
-  to:
-    - Hail\Http\ServerRequest
-    - Psr\Http\Message\ServerRequestInterface
-
-http.dispatcher:
-  class|to: Hail\Http\Dispatcher
-  arguments: [CONFIG.middleware, "@container"]
-
 # Tools
 arrays: Hail\Util\Arrays
 crypto: Hail\Util\Crypto
@@ -84,13 +74,11 @@ app:
   class|to: Hail\Application
   arguments: ["@container"]
 
-request:
-  class|to: Hail\Request
-  arguments: ["@http.request", "@router"]
+request: Hail\Http\Request
 
-dispatcher:
-  class|to: Hail\Dispatcher
-  arguments: ["@http.dispatcher"]
+response:
+  class|to: Hail\Http\Response
+  arguments: ["@app", "@request"]
 
 lib:
   class: Hail\Util\ObjectFactory
@@ -122,6 +110,4 @@ Hail\Http\Middleware\ContentLanguage:
 Hail\Http\Middleware\I18n:
   arguments: ["@container"]
 Hail\Http\Middleware\Route:
-  arguments: ["@container", "@request"]
-Hail\Http\Middleware\Controller:
-  arguments: ["@container", "@request"]
+  arguments: ["@app"]

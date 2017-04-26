@@ -7,7 +7,7 @@ namespace Hail\Facade;
  * @package Hail\Facade
  *
  * @method static void run()
- * @method static \Hail\Dispatcher getDispatcher(string $app)
+ * @method static \Hail\Handler getDispatcher(string $app)
  */
 class Application extends Facade
 {
