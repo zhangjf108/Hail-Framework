@@ -20,9 +20,21 @@ class Response
      */
     protected $app;
 
-    public function __construct(Application $app)
+    /**
+     * @var Cookie
+     */
+    public $cookie;
+
+    /**
+     * @var string
+     */
+    protected $output;
+
+    public function __construct(Application $app, Cookie $cookie)
     {
         $this->app = $app;
+
+        $this->cookie = $cookie;
     }
 
     /**
@@ -129,5 +141,10 @@ class Response
                 'message' => $msg,
             ],
         ]);
+    }
+
+    public function cookie(string $name, string $value, $time = 0)
+    {
+        $this->cookie->set($name, $value, $time);
     }
 }

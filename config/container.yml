@@ -30,10 +30,6 @@ cache.pool:
     - Hail\Cache\CacheItemPoolInterface
     - Psr\Cache\CacheItemPoolInterface
 
-cookie:
-  class|to: Hail\Cookie
-  arguments: [CONFIG.cookie]
-
 db: Hail\Factory\Database::pdo
 
 cdb: Hail\Database\Cache
@@ -74,11 +70,15 @@ app:
   class|to: Hail\Application
   arguments: ["@container"]
 
+cookie:
+  class|to: Hail\Http\Cookie
+  arguments: [CONFIG.cookie]
+
 request: Hail\Http\Request
 
 response:
   class|to: Hail\Http\Response
-  arguments: ["@app"]
+  arguments: ["@app", "@cookie"]
 
 lib:
   class: Hail\Util\ObjectFactory
