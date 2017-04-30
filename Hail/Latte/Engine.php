@@ -13,12 +13,13 @@ use Hail\Latte\Compiler\{
 	Compiler, Parser, PhpHelpers
 };
 use Hail\Latte\Exception\CompileException;
+use Hail\TemplateInterface;
 
 
 /**
  * Templating engine Latte.
  */
-class Engine
+class Engine implements TemplateInterface
 {
 	use Strict;
 
@@ -81,8 +82,12 @@ class Engine
 	 *
 	 * @return void
 	 */
-	public function render($name, array $params = [], $block = null)
+	public function render(string $name, array $params = [], $block = null)
 	{
+        if (strrchr($name, '.') !== '.latte') {
+            $name .= '.latte';
+        }
+
 		$this->createTemplate($name, $params + ['_renderblock' => $block])
 			->render();
 	}
@@ -91,8 +96,12 @@ class Engine
 	/**
 	 * Renders template to string.
 	 */
-	public function renderToString($name, array $params = [], $block = null): string
+	public function renderToString(string $name, array $params = [], $block = null): string
 	{
+        if (strrchr($name, '.') !== '.latte') {
+            $name .= '.latte';
+        }
+
 		$template = $this->createTemplate($name, $params + ['_renderblock' => $block]);
 
 		return $template->capture([$template, 'render']);

@@ -4,7 +4,7 @@ namespace Hail;
 
 use Hail\Container\Container;
 use Hail\Http\{
-    Request, Factory,
+    Factory,
     HttpEvents, Event\DispatcherEvent,
     Server, Emitter\EmitterInterface
 };
@@ -124,7 +124,7 @@ class Application
 
     public function inject(string $name, $object)
     {
-        return $this->container->inject($name, $object);
+        $this->container->inject($name, $object);
     }
 
     /**
@@ -158,26 +158,26 @@ class Application
      */
     public function handle($handler): ResponseInterface
     {
-        if ($handler instanceof \Closure) {
-            return $this->call($handler);
+        if (!$handler instanceof \Closure) {
+            [$class, $method] = $this->convert($handler);
+
+            if ($this->has($class)) {
+                $controller = $this->get($class);
+            } else {
+                $controller = $this->create($class);
+                $this->inject($class, $controller);
+            }
+
+            $handler = [$controller, $method];
         }
 
-        [$class, $method] = $this->convert($handler);
-
-        if ($this->has($class)) {
-            $controller = $this->get($class);
-        } else {
-            $controller = $this->create($class);
-            $this->inject($class, $controller);
-        }
-
-        $result = $this->container->call([$controller, $method]);
+        $result = $this->call($handler);
 
         if ($result instanceof ResponseInterface) {
             return $result;
         }
 
-        return Factory::response(200);
+        return $this->get('response')->output($result);
     }
 
     /**
@@ -276,5 +276,15 @@ class Application
         }
 
         return $this->handler;
+    }
+
+    public function render(ResponseInterface $response, string $name, array $params = []): ResponseInterface
+    {
+        /**
+         * @var TemplateInterface $template
+         */
+        $template = $this->get('template');
+
+        return $template->render($response, $name, $params);
     }
 }

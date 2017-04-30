@@ -70,15 +70,11 @@ app:
   class|to: Hail\Application
   arguments: ["@container"]
 
-cookie:
-  class|to: Hail\Http\Cookie
-  arguments: [CONFIG.cookie]
-
 request: Hail\Http\Request
 
 response:
   class|to: Hail\Http\Response
-  arguments: ["@app", "@cookie"]
+  arguments: ["@app", "@request"]
 
 lib:
   class: Hail\Util\ObjectFactory

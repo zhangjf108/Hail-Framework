@@ -2,6 +2,7 @@
 
 namespace Hail\Http;
 
+use function Couchbase\defaultDecoder;
 use Hail\Http\Message\ServerRequest;
 use Hail\Http\Message\UploadedFile;
 use Hail\Http\Message\Uri;
@@ -40,7 +41,27 @@ class Helpers
             $header = str_replace('_', '-', $header);
         }
 
-        return ucwords(strtolower(trim($header)), '-');
+        $header = strtolower(trim($header));
+
+        switch ($header) {
+            case 'etag':
+                return 'ETag';
+
+            case 'te':
+                return 'TE';
+
+            case 'www-authenticate':
+                return 'WWW-Authenticate';
+
+            case 'mime-version':
+                return 'MIME-Version';
+
+            case 'content-md5':
+                return 'Content-MD5';
+
+            default:
+                return ucwords($header, '-');
+        }
     }
 
     public static function getHeaders(array $server = null)
@@ -292,27 +313,6 @@ class Helpers
         }
 
         return $response->withoutHeader('Content-Length');
-    }
-
-    /**
-     * Inject the provided Content-Type, if none is already present.
-     *
-     * @param string $contentType
-     * @param array  $headers
-     *
-     * @return array Headers with injected Content-Type
-     */
-    public static function injectContentType(string $contentType, array $headers)
-    {
-        foreach ($headers as $k => $v) {
-            if (strtolower($k) === 'content-type') {
-                return $headers;
-            }
-        }
-
-        $headers['Content-Type'] = [$contentType];
-
-        return $headers;
     }
 
     /**

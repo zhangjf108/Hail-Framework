@@ -7,7 +7,7 @@ namespace Hail\Http;
  *
  * @package Hail
  */
-class Cookie
+class Cookie implements \IteratorAggregate, \Countable
 {
     const SAMESITE_LAX = 'lax';
     const SAMESITE_STRICT = 'strict';
@@ -139,18 +139,19 @@ class Cookie
         $this->removeDuplicateCookies();
     }
 
-    public function headers(): string
+    public function inject(array &$headers): void
     {
-        $values = [];
-        foreach ($this->cookies as $paths) {
-            foreach ($paths as $cookies) {
-                foreach ($cookies as $cookie) {
-                    $values[] = $this->headerValue($cookie);
+        if ($this->cookies !== []) {
+            $headers['Set-Cookie'] = [];
+
+            foreach ($this->cookies as $paths) {
+                foreach ($paths as $cookies) {
+                    foreach ($cookies as $cookie) {
+                        $headers['Set-Cookie'][] = $this->headerValue($cookie);
+                    }
                 }
             }
         }
-
-        return $values;
     }
 
     protected function headerValue(array $cookie): string
@@ -251,5 +252,15 @@ class Cookie
         }
 
         return (int) (new \DateTime($time))->format('U');
+    }
+
+    public function count()
+    {
+        return count($this->cookies);
+    }
+
+    public function getIterator()
+    {
+        return new \ArrayIterator($this->cookies);
     }
 }
