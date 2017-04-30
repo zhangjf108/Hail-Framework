@@ -2,7 +2,6 @@
 
 namespace Hail\Excel\Reader\Wrapper;
 
-
 /**
  * Class XMLReader
  * Wrapper around the built-in XMLReader
