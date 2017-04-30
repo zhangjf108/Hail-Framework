@@ -15,7 +15,7 @@ use Hail\Filesystem\Util;
  *
  * @package Hail\Filesystem\Adapter
  */
-class AwsS3 extends AbstractAdapter
+class AwsS3 extends AbstractAdapter implements CanOverwriteFiles
 {
 	const PUBLIC_GRANT_URI = 'http://acs.amazonaws.com/groups/global/AllUsers';
 
@@ -529,11 +529,9 @@ class AwsS3 extends AbstractAdapter
 	/**
 	 * {@inheritdoc}
 	 */
-	public function setPathPrefix($prefix)
+	public function setPathPrefix($path)
 	{
-		$prefix = ltrim($prefix, '/');
-
-		return parent::setPathPrefix($prefix);
+        return ltrim(parent::applyPathPrefix($path), '/');
 	}
 
 	/**
@@ -585,7 +583,7 @@ class AwsS3 extends AbstractAdapter
 		$options = $this->getOptionsFromConfig($config);
 		$acl = array_key_exists('ACL', $options) ? $options['ACL'] : 'private';
 
-		if (!isset($options['ContentType']) && is_string($body)) {
+		if (!isset($options['ContentType'])) {
 			$options['ContentType'] = Util::guessMimeType($path, $body);
 		}
 

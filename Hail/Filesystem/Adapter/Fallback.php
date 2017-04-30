@@ -7,7 +7,7 @@ use Hail\Filesystem\Exception\FileNotFoundException;
 use Hail\Filesystem\Filesystem;
 use InvalidArgumentException;
 
-class FallbackAdapter implements AdapterInterface
+class Fallback implements AdapterInterface
 {
 	/**
 	 * @var AdapterInterface
