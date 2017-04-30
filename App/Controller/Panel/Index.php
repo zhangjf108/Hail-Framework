@@ -5,6 +5,6 @@ class Index extends Base
 {
 	public function indexAction()
 	{
-		return 'test';
+		return [];
 	}
 }

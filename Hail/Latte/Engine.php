@@ -14,6 +14,7 @@ use Hail\Latte\Compiler\{
 };
 use Hail\Latte\Exception\CompileException;
 use Hail\TemplateInterface;
+use Psr\Http\Message\ResponseInterface;
 
 
 /**
@@ -80,16 +81,20 @@ class Engine implements TemplateInterface
 	/**
 	 * Renders template to output.
 	 *
-	 * @return void
+	 * @return ResponseInterface
 	 */
-	public function render(string $name, array $params = [], $block = null)
+	public function render(ResponseInterface $response, string $name, array $params = [], $block = null)
 	{
         if (strrchr($name, '.') !== '.latte') {
             $name .= '.latte';
         }
 
-		$this->createTemplate($name, $params + ['_renderblock' => $block])
-			->render();
+//		$this->createTemplate($name, $params + ['_renderblock' => $block])->render();
+
+        $body = $response->getBody();
+        $body->write($this->renderToString($name));
+
+        return $response;
 	}
 
 

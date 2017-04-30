@@ -72,7 +72,8 @@ class Response
         $this->cookie = new Cookie($app->config('cookie'));
         $this->header = new Header();
 
-        $this->setDate(\DateTime::createFromFormat('U', NOW));
+        $this->status(200);
+        $this->setDate(\DateTime::createFromFormat('U', (string) NOW));
     }
 
     /**
@@ -222,7 +223,7 @@ class Response
             throw new \InvalidArgumentException('Must defined template name');
         }
 
-        $response = $this->response(200);
+        $response = $this->response();
 
         return $this->app->render($response, $name, $params);
     }
@@ -342,6 +343,10 @@ class Response
             }
         }
 
+        if (!$this->version && 'HTTP/1.0' !== $this->request->server('SERVER_PROTOCOL')) {
+            $this->version = '1.1';
+        }
+
         // Check if we need to send extra expire info headers
         if ('1.0' === $this->version && false !== strpos($this->header->get('Cache-Control'), 'no-cache')) {
             $this->header->set('Pragma', 'no-cache');
@@ -386,7 +391,7 @@ class Response
                 return $this->html($return);
 
             case 'template':
-                return $this->template($return);
+                return $this->template(null, $return);
 
             case 'redirect':
                 return $this->redirect($return);
@@ -469,7 +474,7 @@ class Response
             has been removed in the meantime.
          */
         if (!$this->header->has('Date')) {
-            $this->setDate(\DateTime::createFromFormat('U', NOW));
+            $this->setDate(\DateTime::createFromFormat('U', (string) NOW));
         }
 
         return $this->header->getDate('Date');
@@ -504,7 +509,7 @@ class Response
 
         /* RFC2616 - 14.18 says all Responses need to have a Date */
         if (!$this->header->has('Date')) {
-            $this->setDate(\DateTime::createFromFormat('U', NOW));
+            $this->setDate(\DateTime::createFromFormat('U', (string) NOW));
         }
 
         // headers

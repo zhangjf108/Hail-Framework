@@ -34,8 +34,6 @@ db: Hail\Factory\Database::pdo
 
 cdb: Hail\Database\Cache
 
-output: Hail\Output
-
 router:
   class|to: Hail\Router
   arguments: [CONFIG.route]

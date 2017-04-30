@@ -250,8 +250,10 @@ class Config implements \ArrayAccess
                     $end = -5;
                 }
 
-                if ($start !== 0 || $end !== null) {
+                if ($end !== null) {
                     $value = substr($value, $start, $end);
+                } elseif ($start !== 0) {
+                    $value = substr($value, $start);
                 }
             }
         }
