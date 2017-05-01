@@ -37,8 +37,7 @@ class VendorPanel implements PanelInterface
 	 */
 	public function getTab()
 	{
-		ob_start(function () {
-		});
+		ob_start();
 		require __DIR__ . '/templates/vendor.tab.phtml';
 
 		return ob_get_clean();
@@ -49,8 +48,7 @@ class VendorPanel implements PanelInterface
 	 */
 	public function getPanel()
 	{
-		ob_start(function () {
-		});
+		ob_start();
 		$jsonFile = $this->dir . DIRECTORY_SEPARATOR . 'composer.json';
 		$lockFile = $this->dir . DIRECTORY_SEPARATOR . 'composer.lock';
 		$required = $this->decode($jsonFile);

@@ -14,7 +14,7 @@ use Hail\Latte\Compiler\MacroNode;
 /**
  * Latte macro.
  */
-interface IMacro
+interface MacroInterface
 {
 	const
 		AUTO_EMPTY = 4,
@@ -26,24 +26,23 @@ interface IMacro
 	 * Initializes before template parsing.
 	 * @return void
 	 */
-	function initialize();
+	public function initialize();
 
 	/**
 	 * Finishes template parsing.
 	 * @return array|NULL [prolog, epilog]
 	 */
-	function finalize();
+    public function finalize();
 
 	/**
 	 * New node is found. Returns FALSE to reject.
 	 * @return bool|NULL
 	 */
-	function nodeOpened(MacroNode $node);
+    public function nodeOpened(MacroNode $node);
 
 	/**
 	 * Node is closed.
 	 * @return void
 	 */
-	function nodeClosed(MacroNode $node);
-
+    public function nodeClosed(MacroNode $node);
 }

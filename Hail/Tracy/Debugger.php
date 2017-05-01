@@ -573,8 +573,7 @@ class Debugger
     public static function dump($var, $return = false)
     {
         if ($return) {
-            ob_start(function () {
-            });
+            ob_start();
             Dumper::dump($var, [
                 Dumper::DEPTH => self::$maxDepth,
                 Dumper::TRUNCATE => self::$maxLength,

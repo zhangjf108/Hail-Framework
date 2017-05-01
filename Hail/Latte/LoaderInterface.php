@@ -13,27 +13,25 @@ namespace Hail\Latte;
 /**
  * Template loader.
  */
-interface ILoader
+interface LoaderInterface
 {
-
 	/**
 	 * Returns template source code.
 	 */
-	function getContent($name): string;
+    public function getContent($name): string;
 
 	/**
 	 * Checks whether template is expired.
 	 */
-	function isExpired($name, $time): bool;
+    public function isExpired($name, $time): bool;
 
 	/**
 	 * Returns referred template name.
 	 */
-	function getReferredName($name, $referringName): string;
+    public function getReferredName($name, $referringName): string;
 
 	/**
 	 * Returns unique identifier for caching.
 	 */
-	function getUniqueId($name): string;
-
+    public function getUniqueId($name): string;
 }

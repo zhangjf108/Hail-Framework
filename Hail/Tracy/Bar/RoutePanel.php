@@ -25,7 +25,7 @@ class RoutePanel implements PanelInterface
 	public function getTab()
 	{
 		$this->getRouteResult();
-		ob_start(function () {});
+		ob_start();
 		$title = $this->router['title'];
 		require __DIR__ . '/templates/route.tab.phtml';
 		return ob_get_clean();
@@ -37,7 +37,7 @@ class RoutePanel implements PanelInterface
 	 */
 	public function getPanel()
 	{
-		ob_start(function () {});
+		ob_start();
 		$router = $this->router;
 		$url = (string) DI::get('request')->uri();
 		$sorted = array(

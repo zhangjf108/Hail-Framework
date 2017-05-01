@@ -355,7 +355,7 @@ class TracePanel implements PanelInterface
 		$errFile = $this->errFile;
 		$errLine = $this->errLine;
 
-		ob_start(function () {});
+		ob_start();
 		require __DIR__ . '/templates/trace.error.phtml';
 		return ob_get_clean();
 	}
@@ -366,7 +366,7 @@ class TracePanel implements PanelInterface
 	 */
 	public function getTab()
 	{
-		ob_start(function () {});
+		ob_start();
 		require __DIR__ . '/templates/trace.tab.phtml';
 		return ob_get_clean();
 	}

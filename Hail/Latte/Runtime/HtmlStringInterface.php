@@ -10,12 +10,11 @@ declare(strict_types=1);
 namespace Hail\Latte\Runtime;
 
 
-interface IHtmlString
+interface HtmlStringInterface
 {
 
 	/**
 	 * @return string in HTML format
 	 */
-	function __toString(): string;
-
+	public function __toString(): string;
 }

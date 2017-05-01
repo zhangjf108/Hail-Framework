@@ -121,8 +121,7 @@ class Bar
             );
         }
 
-        ob_start(function () {
-        });
+        ob_start();
         require __DIR__ . '/assets/Bar/panels.phtml';
         require __DIR__ . '/assets/Bar/bar.phtml';
         $content = Strings::fixEncoding(ob_get_clean());

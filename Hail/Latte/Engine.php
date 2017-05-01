@@ -44,7 +44,7 @@ class Engine implements TemplateInterface
 	/** @var Compiler */
 	private $compiler;
 
-	/** @var ILoader */
+	/** @var LoaderInterface */
 	private $loader;
 
 	/** @var Runtime\FilterExecutor */
@@ -77,26 +77,30 @@ class Engine implements TemplateInterface
 		$this->filters = new Runtime\FilterExecutor;
 	}
 
-
 	/**
-	 * Renders template to output.
+	 * Renders template to ResponseInterface.
 	 *
 	 * @return ResponseInterface
 	 */
-	public function render(ResponseInterface $response, string $name, array $params = [], $block = null)
+	public function renderToResponse(ResponseInterface $response, string $name, array $params = [], $block = null)
 	{
-        if (strrchr($name, '.') !== '.latte') {
-            $name .= '.latte';
-        }
-
-//		$this->createTemplate($name, $params + ['_renderblock' => $block])->render();
-
         $body = $response->getBody();
         $body->write($this->renderToString($name));
 
         return $response;
 	}
 
+    /**
+     * Renders template to output.
+     */
+    public function render(string $name, array $params = [], $block = null)
+    {
+        if (strrchr($name, '.') !== '.latte') {
+            $name .= '.latte';
+        }
+
+		$this->createTemplate($name, $params + ['_renderblock' => $block])->render();
+    }
 
 	/**
 	 * Renders template to string.
@@ -107,11 +111,8 @@ class Engine implements TemplateInterface
             $name .= '.latte';
         }
 
-		$template = $this->createTemplate($name, $params + ['_renderblock' => $block]);
-
-		return $template->capture([$template, 'render']);
+		return $this->createTemplate($name, $params + ['_renderblock' => $block])->capture();
 	}
-
 
 	/**
 	 * Creates template object.
@@ -305,7 +306,7 @@ class Engine implements TemplateInterface
 	 *
 	 * @return static
 	 */
-	public function addMacro($name, IMacro $macro)
+	public function addMacro($name, MacroInterface $macro)
 	{
 		$this->getCompiler()->addMacro($name, $macro);
 
@@ -410,7 +411,7 @@ class Engine implements TemplateInterface
 	/**
 	 * @return static
 	 */
-	public function setLoader(ILoader $loader)
+	public function setLoader(LoaderInterface $loader)
 	{
 		$this->loader = $loader;
 
@@ -418,7 +419,7 @@ class Engine implements TemplateInterface
 	}
 
 
-	public function getLoader(): ILoader
+	public function getLoader(): LoaderInterface
 	{
 		if (!$this->loader) {
 			$this->loader = new Loaders\FileLoader($this->baseDirectory);

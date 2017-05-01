@@ -4,9 +4,7 @@ namespace Hail;
 
 use Hail\Container\Container;
 use Hail\Http\{
-    Factory,
-    HttpEvents, Event\DispatcherEvent,
-    Server, Emitter\EmitterInterface
+    HttpEvents, Event\DispatcherEvent, Response, Server, Emitter\EmitterInterface
 };
 use Hail\Exception\BadRequestException;
 use Psr\Http\Message\ResponseInterface;
@@ -177,7 +175,10 @@ class Application
             return $result;
         }
 
-        return $this->get('response')->output($result);
+        /** @var Response $response */
+        $response = $this->get('response');
+
+        return $response->default($result);
     }
 
     /**
@@ -280,11 +281,9 @@ class Application
 
     public function render(ResponseInterface $response, string $name, array $params = []): ResponseInterface
     {
-        /**
-         * @var TemplateInterface $template
-         */
+        /** @var TemplateInterface $template */
         $template = $this->get('template');
 
-        return $template->render($response, $name, $params);
+        return $template->renderToResponse($response, $name, $params);
     }
 }

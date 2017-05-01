@@ -15,59 +15,61 @@ use Hail\Latte;
 /**
  * Template loader.
  */
-class StringLoader implements Latte\ILoader
+class StringLoader implements Latte\LoaderInterface
 {
-	use Latte\Strict;
+    use Latte\Strict;
 
-	/** @var array|NULL [name => content] */
-	private $templates;
-
-
-	public function __construct(array $templates = NULL)
-	{
-		$this->templates = $templates;
-	}
+    /** @var array|NULL [name => content] */
+    private $templates;
 
 
-	/**
-	 * Returns template source code.
-	 */
-	public function getContent($name): string
-	{
-		if ($this->templates === NULL) {
-			return $name;
-		} elseif (isset($this->templates[$name])) {
-			return $this->templates[$name];
-		} else {
-			throw new \RuntimeException("Missing template '$name'.");
-		}
-	}
+    public function __construct(array $templates = null)
+    {
+        $this->templates = $templates;
+    }
 
 
-	public function isExpired($name, $time): bool
-	{
-		return FALSE;
-	}
+    /**
+     * Returns template source code.
+     */
+    public function getContent($name): string
+    {
+        if ($this->templates === null) {
+            return $name;
+        }
+
+        if (isset($this->templates[$name])) {
+            return $this->templates[$name];
+        }
+
+        throw new \RuntimeException("Missing template '$name'.");
+    }
 
 
-	/**
-	 * Returns referred template name.
-	 */
-	public function getReferredName($name, $referringName): string
-	{
-		if ($this->templates === NULL) {
-			throw new \LogicException("Missing template '$name'.");
-		}
-		return $name;
-	}
+    public function isExpired($name, $time): bool
+    {
+        return false;
+    }
 
 
-	/**
-	 * Returns unique identifier for caching.
-	 */
-	public function getUniqueId($name): string
-	{
-		return $this->getContent($name);
-	}
+    /**
+     * Returns referred template name.
+     */
+    public function getReferredName($name, $referringName): string
+    {
+        if ($this->templates === null) {
+            throw new \LogicException("Missing template '$name'.");
+        }
 
+        return $name;
+    }
+
+
+    /**
+     * Returns unique identifier for caching.
+     */
+    public function getUniqueId($name): string
+    {
+        return $this->getContent($name);
+    }
 }

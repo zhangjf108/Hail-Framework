@@ -10,7 +10,7 @@ declare(strict_types=1);
 namespace Hail\Latte\Macros;
 
 use Hail\Latte\{
-	IMacro, Strict
+	MacroInterface, Strict
 };
 use Hail\Latte\Compiler\{
 	Compiler, MacroNode, PhpWriter
@@ -22,7 +22,7 @@ use Hail\Latte\Exception\CompileException;
 /**
  * Base IMacro implementation. Allows add multiple macros.
  */
-class MacroSet implements IMacro
+class MacroInterfaceSet implements MacroInterface
 {
 	use Strict;
 

@@ -33,11 +33,11 @@ class SnippetDriver
 	/** @var bool */
 	private $renderingSnippets = FALSE;
 
-	/** @var ISnippetBridge */
+	/** @var SnippetBridgeInterface */
 	private $bridge;
 
 
-	public function __construct(ISnippetBridge $bridge)
+	public function __construct(SnippetBridgeInterface $bridge)
 	{
 		$this->bridge = $bridge;
 	}
@@ -52,7 +52,7 @@ class SnippetDriver
 		if (($this->nestingLevel === 0 && $this->bridge->needsRedraw($name))
 			|| ($type === self::TYPE_DYNAMIC && ($previous = end($this->stack)) && $previous[1] === TRUE)
 		) {
-			ob_start(function () {});
+			ob_start();
 			$this->nestingLevel = $type === self::TYPE_AREA ? 0 : 1;
 			$obStarted = TRUE;
 		} elseif ($this->nestingLevel > 0) {
@@ -102,5 +102,4 @@ class SnippetDriver
 		$this->bridge->renderChildren();
 		return TRUE;
 	}
-
 }

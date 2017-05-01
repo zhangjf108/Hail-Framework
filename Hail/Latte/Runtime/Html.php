@@ -15,7 +15,7 @@ use Hail\Latte;
 /**
  * HTML literal.
  */
-class Html implements IHtmlString
+class Html implements HtmlStringInterface
 {
 	use Latte\Strict;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Hail\Http;
 
 use Hail\Util\{
-    ArrayDot, Arrays
+    ArrayDot, Arrays, Strings
 };
 use Psr\Http\Message\{
     ServerRequestInterface, UploadedFileInterface, UriInterface
@@ -238,5 +238,59 @@ class Request
     public function secure(): bool
     {
         return $this->serverRequest->getUri()->getScheme() === 'https';
+    }
+
+    /**
+     * Is AJAX request?
+     *
+     * @return bool
+     */
+    public function ajax(): bool
+    {
+        return $this->serverRequest->getHeaderLine('X-Requested-With') === 'XMLHttpRequest';
+    }
+
+    /**
+     * Determine if the request is the result of an PJAX call.
+     *
+     * @return bool
+     */
+    public function pjax(): bool
+    {
+        return $this->serverRequest->getHeaderLine('X-PJAX') === 'true';
+    }
+
+    /**
+     * Determine if the request is sending JSON.
+     *
+     * @return bool
+     */
+    public function json(): bool
+    {
+        return Strings::contains(
+            $this->serverRequest->getHeaderLine('Content-Type') ?? '', ['/json', '+json']
+        );
+    }
+
+    /**
+     * Determine if the current request probably expects a JSON response.
+     *
+     * @return bool
+     */
+    public function expectsJson(): bool
+    {
+        return ($this->ajax() && !$this->pjax()) || $this->wantsJson();
+    }
+
+    /**
+     * Determine if the current request is asking for JSON in return.
+     *
+     * @return bool
+     */
+    public function wantsJson(): bool
+    {
+        $acceptable = $this->serverRequest->getHeaderLine('Accept');
+
+        return $acceptable !== null && Strings::contains($acceptable, ['/json', '+json']);
     }
 }

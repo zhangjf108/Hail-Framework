@@ -46,7 +46,7 @@ class QueryPanel implements PanelInterface
 	 */
 	public function getTab()
 	{
-		ob_start(function () {});
+		ob_start();
 		$title = $this->getTitle();
 		require __DIR__ . '/templates/query.tab.phtml';
 		return ob_get_clean();
@@ -59,7 +59,7 @@ class QueryPanel implements PanelInterface
 	 */
 	public function getPanel()
 	{
-		ob_start(function () {});
+		ob_start();
 		$title = $this->getTitle();
 		$aggregations = Collector::getAggregations();
 		$queries = Collector::get();

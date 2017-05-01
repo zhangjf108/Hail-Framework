@@ -10,7 +10,7 @@ declare(strict_types=1);
 namespace Hail\Latte\Compiler;
 
 use Hail\Latte\{
-	IMacro, Strict
+	MacroInterface, Strict
 };
 
 
@@ -25,7 +25,7 @@ class MacroNode
 		PREFIX_TAG = 'tag',
 		PREFIX_NONE = 'none';
 
-	/** @var IMacro */
+	/** @var MacroInterface */
 	public $macro;
 
 	/** @var string */
@@ -89,7 +89,7 @@ class MacroNode
 	public $saved;
 
 
-	public function __construct(IMacro $macro, $name, $args = NULL, $modifiers = NULL, self $parentNode = NULL, HtmlNode $htmlNode = NULL, $prefix = NULL)
+	public function __construct(MacroInterface $macro, $name, $args = NULL, $modifiers = NULL, self $parentNode = NULL, HtmlNode $htmlNode = NULL, $prefix = NULL)
 	{
 		$this->macro = $macro;
 		$this->name = (string) $name;

@@ -41,14 +41,14 @@ class Filters
     /**
      * Escapes string for use inside HTML.
      *
-     * @param  mixed  plain text or IHtmlString
+     * @param  mixed  plain text or HtmlStringInterface
      *
      * @return string HTML
      */
     public static function escapeHtmlText($s): string
     {
-        return $s instanceof IHtmlString
-            ? $s->__toString(true)
+        return $s instanceof HtmlStringInterface
+            ? $s->__toString()
             : htmlSpecialChars((string) $s, ENT_NOQUOTES, 'UTF-8');
     }
 
@@ -62,7 +62,7 @@ class Filters
      */
     public static function escapeHtmlAttr($s, bool $double = true): string
     {
-        $double = $double && $s instanceof IHtmlString ? false : $double;
+        $double = $double && $s instanceof HtmlStringInterface ? false : $double;
         $s = (string) $s;
         if (strpos($s, '`') !== false && strpbrk($s, ' <>"\'') === false) {
             $s .= ' '; // protection against innerHTML mXSS vulnerability nette/nette#1496
@@ -180,8 +180,8 @@ class Filters
      */
     public static function escapeJs($s): string
     {
-        if ($s instanceof IHtmlString) {
-            $s = $s->__toString(true);
+        if ($s instanceof HtmlStringInterface) {
+            $s = $s->__toString();
         }
 
         $json = json_encode($s, JSON_UNESCAPED_UNICODE);

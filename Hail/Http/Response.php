@@ -18,7 +18,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 
 /**
- * Class Dispatcher
+ * Class Response
  *
  * @package Hail
  */
@@ -294,8 +294,6 @@ class Response
         );
 
         $size = $length = filesize($file);
-        $body = Factory::streamFromFile($file, 'rb');
-        $body->rewind();
 
         $this->header->set('Accept-Ranges', 'bytes');
         if (preg_match('#^bytes=(\d*)-(\d*)\z#', $this->request->header('Range'), $matches)) {
@@ -315,16 +313,17 @@ class Response
             $this->status(206);
             $this->header->set('Content-Range', 'bytes ' . $start . '-' . $end . '/' . $size);
             $length = $end - $start + 1;
-
-
-            $body->seek($start);
         } else {
             $this->header->set('Content-Range', 'bytes 0-' . ($size - 1) . '/' . $size);
         }
 
         $this->header->set('Content-Length', $length);
 
-        return $this->response($body);
+        $this->app->emitter(new Emitter\SapiStream());
+
+        return $this->response(
+            Factory::streamFromFile($file, 'rb')
+        );
     }
 
     public function response($body = null): ResponseInterface
@@ -370,7 +369,7 @@ class Response
         return Factory::response($this->status, $body, $headers, $this->version, $this->reason);
     }
 
-    public function output($return): ResponseInterface
+    public function default($return): ResponseInterface
     {
         if ($this->output === null) {
             $this->to();

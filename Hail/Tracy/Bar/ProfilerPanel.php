@@ -10,7 +10,7 @@ class ProfilerPanel implements PanelInterface
 	 */
 	public function getTab()
 	{
-		ob_start(function () {});
+		ob_start();
 		$title = 'disabled';
 		if (Profiler::isEnabled()) {
 			$title = Profiler::count();
@@ -24,7 +24,7 @@ class ProfilerPanel implements PanelInterface
 	 */
 	public function getPanel()
 	{
-		ob_start(function () {});
+		ob_start();
 		require __DIR__ . '/templates/profiler.panel.phtml';
 		return ob_get_clean();
 	}
