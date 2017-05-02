@@ -78,7 +78,7 @@ class Logger implements LoggerInterface
         if (SEASLOG_EXTENSION) {
             $message .= $exceptionFile ? ' @@  ' . basename($exceptionFile) : '';
 
-            \SeasLog::log($level, $message, $context);
+            \SeasLog::log($level ?: LogLevel::DEBUG, $message, $context);
         } else {
             $message = Dumper::interpolate($message, $context);
 
@@ -111,7 +111,7 @@ class Logger implements LoggerInterface
     protected function formatLogLine($message, $exceptionFile = null)
     {
         return implode(' ', [
-            date('[Y-m-d H-i-s]'), // @ timezone may not be set
+            date('[Y-m-d H-i-s]'),
             preg_replace('#\s*\r?\n\s*#', ' ', Dumper::formatMessage($message)),
             ' @  ' . Helpers::getSource(),
             $exceptionFile ? ' @@  ' . basename($exceptionFile) : null,
@@ -150,7 +150,7 @@ class Logger implements LoggerInterface
             }
         }
 
-        return $dir . 'exception--' . date('Y-m-d--H-i') . "--$hash.html"; // @ timezone may not be set
+        return $dir . 'exception--' . date('Y-m-d--H-i') . "--$hash.html";
     }
 
 
@@ -180,10 +180,10 @@ class Logger implements LoggerInterface
     {
         $snooze = is_numeric($this->emailSnooze)
             ? $this->emailSnooze
-            : @strtotime($this->emailSnooze) - time(); // @ timezone may not be set
+            : strtotime($this->emailSnooze) - NOW;
 
         if ($this->email && $this->mailer
-            && @filemtime($this->directory . '/email-sent') + $snooze < time() // @ file may not exist
+            && @filemtime($this->directory . '/email-sent') + $snooze < NOW // @ file may not exist
             && @file_put_contents($this->directory . '/email-sent', 'sent') // @ file may not be writable
         ) {
             call_user_func($this->mailer, $message, implode(', ', (array) $this->email));

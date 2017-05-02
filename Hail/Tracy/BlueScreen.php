@@ -85,7 +85,7 @@ class BlueScreen
 	 */
 	public function renderToFile($exception, $file)
 	{
-		if ($handle = @fopen($file, 'x')) {
+		if ($handle = @fopen($file, 'xb')) {
 			ob_start(); // double buffer prevents sending HTTP headers in some PHP
 			ob_start(function ($buffer) use ($handle) {
 				fwrite($handle, $buffer);
@@ -140,11 +140,12 @@ class BlueScreen
 				$res[] = (object) $panel;
 				continue;
 			} catch (\Throwable $e) {
-			} catch (\Exception $e) {
 			}
+
 			while (ob_get_level() > $obLevel) { // restore ob-level if broken
 				ob_end_clean();
 			}
+
 			is_callable($callback, true, $name);
 			$res[] = (object) [
 				'tab' => "Error in panel $name",
@@ -285,5 +286,4 @@ class BlueScreen
 
 		return false;
 	}
-
 }
