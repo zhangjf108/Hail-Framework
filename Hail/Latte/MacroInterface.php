@@ -26,23 +26,23 @@ interface MacroInterface
 	 * Initializes before template parsing.
 	 * @return void
 	 */
-	public function initialize();
+	public function initialize(): void;
 
 	/**
 	 * Finishes template parsing.
 	 * @return array|NULL [prolog, epilog]
 	 */
-    public function finalize();
+    public function finalize(): ?array;
 
 	/**
 	 * New node is found. Returns FALSE to reject.
 	 * @return bool|NULL
 	 */
-    public function nodeOpened(MacroNode $node);
+    public function nodeOpened(MacroNode $node): ?bool;
 
 	/**
 	 * Node is closed.
 	 * @return void
 	 */
-    public function nodeClosed(MacroNode $node);
+    public function nodeClosed(MacroNode $node): void;
 }

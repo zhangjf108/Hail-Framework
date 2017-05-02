@@ -35,17 +35,11 @@ class Engine implements TemplateInterface
 		CONTENT_ICAL = 'ical',
 		CONTENT_TEXT = 'text';
 
-	/** @var callable[] */
-	public $onCompile = [];
-
 	/** @var Parser */
 	private $parser;
 
 	/** @var Compiler */
 	private $compiler;
-
-	/** @var LoaderInterface */
-	private $loader;
 
 	/** @var Runtime\FilterExecutor */
 	private $filters;
@@ -68,11 +62,22 @@ class Engine implements TemplateInterface
 	/** @var bool */
 	private $strictTypes = false;
 
+	/** @var ResponseInterface */
+	public $response;
+
 
 	public function __construct(array $config)
 	{
-		$this->baseDirectory = $config['directory'] ?? null;
-		$this->tempDirectory = $config['cache'] ?? null;
+        if (!isset($config['directory'])) {
+            throw new \LogicException('Path to template directory is not set.');
+        }
+
+        if (!isset($config['cache'])) {
+            throw new \LogicException('Path to temporary directory is not set.');
+        }
+
+		$this->baseDirectory = rtrim($config['directory'], '/') . '/';
+		$this->tempDirectory = rtrim($config['cache'], '/') . '/';
 
 		$this->filters = new Runtime\FilterExecutor;
 	}
@@ -80,43 +85,62 @@ class Engine implements TemplateInterface
 	/**
 	 * Renders template to ResponseInterface.
 	 *
-	 * @return ResponseInterface
-	 */
-	public function renderToResponse(ResponseInterface $response, string $name, array $params = [], $block = null)
+     * @param ResponseInterface $response
+     * @param string            $name
+     * @param array             $params
+     *
+     * @return ResponseInterface
+     */
+	public function renderToResponse(ResponseInterface $response, string $name, array $params = []): ResponseInterface
 	{
-        $body = $response->getBody();
+        $this->response = $response;
+
+        $body = $this->response->getBody();
         $body->write($this->renderToString($name));
 
-        return $response;
+        return $this->response;
 	}
 
     /**
      * Renders template to output.
+     *
+     * @param string $name
+     * @param array  $params
      */
-    public function render(string $name, array $params = [], $block = null)
+    public function render(string $name, array $params = [])
     {
         if (strrchr($name, '.') !== '.latte') {
             $name .= '.latte';
         }
 
-		$this->createTemplate($name, $params + ['_renderblock' => $block])->render();
+		$this->createTemplate($name, $params)->render();
     }
 
 	/**
 	 * Renders template to string.
-	 */
-	public function renderToString(string $name, array $params = [], $block = null): string
+	 *
+     * @param string $name
+     * @param array  $params
+     *
+     * @return string
+     */
+	public function renderToString(string $name, array $params = []): string
 	{
         if (strrchr($name, '.') !== '.latte') {
             $name .= '.latte';
         }
 
-		return $this->createTemplate($name, $params + ['_renderblock' => $block])->capture();
+		return $this->createTemplate($name, $params)->capture();
 	}
 
 	/**
 	 * Creates template object.
-	 */
+	 *
+     * @param       $name
+     * @param array $params
+     *
+     * @return Runtime\Template
+     */
 	public function createTemplate($name, array $params = []): Runtime\Template
 	{
 		$class = $this->getTemplateClass($name);
@@ -128,17 +152,17 @@ class Engine implements TemplateInterface
 	}
 
 
-	/**
-	 * Compiles template to PHP code.
-	 */
-	public function compile($name): string
+    /**
+     * Compiles template to PHP code.
+     *
+     * @param string $name
+     *
+     * @return string
+     * @throws CompileException
+     */
+	public function compile(string $name): string
 	{
-		foreach ($this->onCompile ?: [] as $cb) {
-			(\Closure::fromCallable($cb))($this);
-		}
-		$this->onCompile = [];
-
-		$source = $this->getLoader()->getContent($name);
+		$source = $this->getContent($name);
 
 		try {
 			$tokens = $this->getParser()->setContentType($this->contentType)
@@ -175,10 +199,6 @@ class Engine implements TemplateInterface
 	 */
 	public function warmupCache(string $name)
 	{
-		if (!$this->tempDirectory) {
-			throw new \LogicException('Path to temporary directory is not set.');
-		}
-
 		$class = $this->getTemplateClass($name);
 		if (!class_exists($class, false)) {
 			$this->loadTemplate($name);
@@ -191,38 +211,33 @@ class Engine implements TemplateInterface
 	 */
 	private function loadTemplate($name)
 	{
-		if (!$this->tempDirectory) {
-			$code = $this->compile($name);
-			if (@eval('?>' . $code) === false) { // @ is escalated to exception
-				throw (new CompileException('Error in template: ' . error_get_last()['message']))
-					->setSource($code, error_get_last()['line'], "$name (compiled)");
-			}
-
-			return;
-		}
-
 		$file = $this->getCacheFile($name);
 
 		if (!$this->isExpired($file, $name) && (@include $file) !== false) { // @ - file may not exist
 			return;
 		}
 
-		if (!is_dir($this->tempDirectory)) {
-			@mkdir($this->tempDirectory); // @ - directory may already exist
-		}
+        if (
+            !file_exists($this->tempDirectory) &&
+            !@mkdir($this->tempDirectory, 0777, true) && !is_dir($this->tempDirectory)
+        ) {
+		    throw new \LogicException('Temporary directory not exists!');
+        }
 
 		$handle = fopen("$file.lock", 'c+');
 		if (!$handle || !flock($handle, LOCK_EX)) {
 			throw new \RuntimeException("Unable to acquire exclusive lock '$file.lock'.");
 		}
 
-		if (!is_file($file) || $this->isExpired($file, $name)) {
+		if (!file_exists($file) || $this->isExpired($file, $name)) {
 			$code = $this->compile($name);
 			if (file_put_contents("$file.tmp", $code) !== strlen($code) || !rename("$file.tmp", $file)) {
 				@unlink("$file.tmp"); // @ - file may not exist
 				throw new \RuntimeException("Unable to create '$file'.");
-			} elseif (function_exists('opcache_invalidate')) {
-				@opcache_invalidate($file, true); // @ can be restricted
+			}
+
+			if (function_exists('opcache_invalidate')) {
+				opcache_invalidate($file, true);
 			}
 		}
 
@@ -238,7 +253,11 @@ class Engine implements TemplateInterface
 
 	private function isExpired(string $file, string $name): bool
 	{
-		return $this->autoRefresh && $this->getLoader()->isExpired($name, (int) @filemtime($file)); // @ - file may not exist
+	    if (!$this->autoRefresh) {
+	        return false;
+        }
+
+		return ((int) @filemtime($this->baseDirectory . $name)) > ((int) @filemtime($file)); // @ - file may not exist
 	}
 
 
@@ -249,13 +268,13 @@ class Engine implements TemplateInterface
 			? preg_replace('#[^\w@.-]+#', '-', substr($m[0], 1)) . '--'
 			: '';
 
-		return "$this->tempDirectory/$base$hash.php";
+		return $this->tempDirectory . $base . $hash . '.php';
 	}
 
 
 	public function getTemplateClass($name): string
 	{
-		$key = $this->getLoader()->getUniqueId($name) . "\00" . self::VERSION;
+		$key = $this->baseDirectory . $name . "\00" . self::VERSION;
 
 		return 'Template' . substr(md5($key), 0, 10);
 	}
@@ -407,25 +426,54 @@ class Engine implements TemplateInterface
 		return $this->compiler;
 	}
 
+    /**
+     * Returns template source code.
+     */
+    private function getContent(string $file): string
+    {
+        $file = $this->baseDirectory . $file;
 
-	/**
-	 * @return static
-	 */
-	public function setLoader(LoaderInterface $loader)
-	{
-		$this->loader = $loader;
+        if (!is_file($file)) {
+            throw new \RuntimeException("Missing template file '$file'.");
+        }
 
-		return $this;
-	}
+        if (filemtime($file) > NOW && @touch($file) === false) {
+            trigger_error("File's modification time is in the future. Cannot update it: " . error_get_last()['message'],
+                E_USER_WARNING);
+        }
 
+        return file_get_contents($file);
+    }
 
-	public function getLoader(): LoaderInterface
-	{
-		if (!$this->loader) {
-			$this->loader = new Loaders\FileLoader($this->baseDirectory);
-		}
+    /**
+     * Returns referred template name.
+     *
+     * @param string $file
+     * @param string $referringFile
+     *
+     * @return string
+     */
+    public function getReferredName(string $file, string $referringFile): string
+    {
+        return static::normalizePath($referringFile . '/../' . $file);
+    }
 
-		return $this->loader;
-	}
+    private static function normalizePath($path): string
+    {
+        $res = [];
 
+        if (strpos($path, '\\') !== false) {
+            $path = str_replace('\\', '/', $path);
+        }
+
+        foreach (explode('/', $path) as $part) {
+            if ($part === '..' && $res && end($res) !== '..') {
+                array_pop($res);
+            } elseif ($part !== '.' && $part !== '') {
+                $res[] = $part;
+            }
+        }
+
+        return implode(DIRECTORY_SEPARATOR, $res);
+    }
 }

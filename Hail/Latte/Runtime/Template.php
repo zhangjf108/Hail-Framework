@@ -152,9 +152,6 @@ class Template
             $this->parentName = ($this->global->coreParentFinder)($this);
         }
 
-        if (isset($this->global->snippetBridge) && !isset($this->global->snippetDriver)) {
-            $this->global->snippetDriver = new SnippetDriver($this->global->snippetBridge);
-        }
         Filters::$xhtml = (bool) preg_match('#xml|xhtml#', $this->contentType);
 
         if ($this->referenceType === 'import') {
@@ -174,24 +171,6 @@ class Template
             return;
         }
 
-        if (!empty($this->params['_renderblock'])) { // single block rendering
-            $tmp = $this;
-            while (in_array($this->referenceType, ['extends', null], true) && ($tmp = $tmp->referringTemplate)) {
-                ;
-            }
-            if (!$tmp) {
-                $this->renderBlock($this->params['_renderblock'], $this->params);
-
-                return;
-            }
-        }
-
-        if (isset($this->global->snippetDriver) && $this->global->snippetBridge->isSnippetMode()) {
-            if ($this->global->snippetDriver->renderSnippets($this->blockQueue, $this->params)) {
-                return;
-            }
-        }
-
         $this->main();
     }
 
@@ -202,7 +181,7 @@ class Template
      */
     protected function createTemplate($name, array $params, $referenceType): Template
     {
-        $name = $this->engine->getLoader()->getReferredName($name, $this->name);
+        $name = $this->engine->getReferredName($name, $this->name);
         $child = $this->engine->createTemplate($name, $params);
         $child->referringTemplate = $this;
         $child->referenceType = $referenceType;
@@ -249,6 +228,15 @@ class Template
      */
     public function prepare()
     {
+    }
+
+    /**
+     * @return array
+     * @internal
+     */
+    public function main()
+    {
+        return [];
     }
 
 

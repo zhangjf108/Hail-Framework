@@ -235,7 +235,7 @@ class Compiler
      * @return void
      * @internal
      */
-    public function addMethod($name, $body, string $arguments = '')
+    public function addMethod(string $name, string $body, string $arguments = '')
     {
         $this->methods[$name] = ['body' => trim($body), 'arguments' => $arguments];
     }

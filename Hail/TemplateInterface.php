@@ -6,5 +6,5 @@ use Psr\Http\Message\ResponseInterface;
 
 interface TemplateInterface
 {
-    public function renderToResponse(ResponseInterface $response, string $name, array $params = []);
+    public function renderToResponse(ResponseInterface $response, string $name, array $params = []): ResponseInterface;
 }

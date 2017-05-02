@@ -14,7 +14,6 @@ use Hail\Latte\Helpers;
 use Hail\Latte\Compiler\{
     Compiler, MacroNode, MacroTokens, PhpWriter
 };
-use Hail\Latte\Runtime\SnippetDriver;
 
 
 /**
@@ -43,10 +42,8 @@ class BlockMacros extends MacroInterfaceSet
         $me->addMacro('import', [$me, 'macroImport'], null, null, self::ALLOWED_IN_HEAD);
         $me->addMacro('extends', [$me, 'macroExtends'], null, null, self::ALLOWED_IN_HEAD);
         $me->addMacro('layout', [$me, 'macroExtends'], null, null, self::ALLOWED_IN_HEAD);
-        $me->addMacro('snippet', [$me, 'macroBlock'], [$me, 'macroBlockEnd']);
         $me->addMacro('block', [$me, 'macroBlock'], [$me, 'macroBlockEnd'], null, self::AUTO_CLOSE);
         $me->addMacro('define', [$me, 'macroBlock'], [$me, 'macroBlockEnd']);
-        $me->addMacro('snippetArea', [$me, 'macroBlock'], [$me, 'macroBlockEnd']);
         $me->addMacro('ifset', [$me, 'macroIfset'], '}');
         $me->addMacro('elseifset', [$me, 'macroIfset']);
     }
@@ -203,8 +200,6 @@ class BlockMacros extends MacroInterfaceSet
 
     /**
      * {block [name]}
-     * {snippet [name]}
-     * {snippetArea [name]}
      * {define name}
      */
     public function macroBlock(MacroNode $node, PhpWriter $writer)
@@ -214,7 +209,9 @@ class BlockMacros extends MacroInterfaceSet
         if ($node->name === 'block' && $name === null) { // anonymous block
             return $node->modifiers === '' ? '' : 'ob_start()';
 
-        } elseif ($node->name === 'define' && $node->modifiers) {
+        }
+
+        if ($node->name === 'define' && $node->modifiers) {
             throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
         }
 
@@ -224,30 +221,7 @@ class BlockMacros extends MacroInterfaceSet
                 throw new CompileException('Missing block name.');
             }
 
-        } elseif (strpos($name, '$') !== false) { // dynamic block/snippet
-            if ($node->name === 'snippet') {
-                for ($parent = $node->parentNode; $parent && !($parent->name === 'snippet' || $parent->name === 'snippetArea'); $parent = $parent->parentNode) {
-                    ;
-                }
-                if (!$parent) {
-                    throw new CompileException('Dynamic snippets are allowed only inside static snippet/snippetArea.');
-                }
-                $parent->data->dynamic = true;
-                $node->data->leave = true;
-                $node->closingCode = "<?php \$this->global->snippetDriver->leave(); ?>";
-                $enterCode = '$this->global->snippetDriver->enter(' . $writer->formatWord($name) . ', "' . SnippetDriver::TYPE_DYNAMIC . '");';
-
-                if ($node->prefix) {
-                    $node->attrCode = $writer->write("<?php echo ' id=\"' . htmlSpecialChars(\$this->global->snippetDriver->getHtmlId({$writer->formatWord($name)})) . '\"' ?>");
-
-                    return $writer->write($enterCode);
-                }
-                $node->closingCode .= "\n</div>";
-                $this->checkExtraArgs($node);
-
-                return $writer->write("?>\n<div id=\"<?php echo htmlSpecialChars(\$this->global->snippetDriver->getHtmlId({$writer->formatWord($name)})) ?>\"><?php " . $enterCode);
-            }
-
+        } elseif (strpos($name, '$') !== false) { // dynamic block
             $node->data->leave = true;
             $node->data->func = $this->generateMethodName($name);
             $fname = $writer->formatWord($name);
@@ -271,14 +245,6 @@ class BlockMacros extends MacroInterfaceSet
                 . "\$this->blockQueue[$fname][] = [\$this, '{$node->data->func}'];";
         }
 
-        // static snippet/snippetArea
-        if ($node->name === 'snippet' || $node->name === 'snippetArea') {
-            if ($node->prefix && isset($node->htmlNode->attrs['id'])) {
-                throw new CompileException('Cannot combine HTML attribute id with n:snippet.');
-            }
-            $node->data->name = $name = '_' . $name;
-        }
-
         if (isset($this->namedBlocks[$name])) {
             throw new CompileException("Cannot redeclare static {$node->name} '$name'");
         }
@@ -296,27 +262,8 @@ class BlockMacros extends MacroInterfaceSet
         }
         $this->blockTypes[$name] = implode($node->context);
 
-        $include = '$this->renderBlock(%var, ' . (($node->name === 'snippet' || $node->name === 'snippetArea') ? '$this->params' : 'get_defined_vars()')
-            . ($node->modifiers ? ', function ($s, $type) { $_fi = new LR\FilterInfo($type); return %modifyContent($s); }' : '') . ')';
-
-        if ($node->name === 'snippet') {
-            if ($node->prefix) {
-                if (isset($node->htmlNode->macroAttrs['foreach'])) {
-                    trigger_error('Combination of n:snippet with n:foreach is invalid, use n:inner-foreach.',
-                        E_USER_WARNING);
-                }
-                $node->attrCode = $writer->write('<?php echo \' id="\' . htmlSpecialChars($this->global->snippetDriver->getHtmlId(%var)) . \'"\' ?>',
-                    (string) substr($name, 1));
-
-                return $writer->write($include, $name);
-            }
-            $this->checkExtraArgs($node);
-
-            return $writer->write("?>\n<div id=\"<?php echo htmlSpecialChars(\$this->global->snippetDriver->getHtmlId(%var)) ?>\"><?php $include ?>\n</div><?php ",
-                (string) substr($name, 1), $name
-            );
-
-        }
+        $include = '$this->renderBlock(%var, get_defined_vars()' .
+            ($node->modifiers ? ', function ($s, $type) { $_fi = new LR\FilterInfo($type); return %modifyContent($s); }' : '') . ')';
 
         if ($node->name === 'define') {
             $tokens = $node->tokenizer;
@@ -335,7 +282,7 @@ class BlockMacros extends MacroInterfaceSet
             return $extendsCheck;
 
         }
-        // block, snippetArea
+        // block
         $this->checkExtraArgs($node);
 
         return $writer->write($extendsCheck . $include, $name);
@@ -344,27 +291,11 @@ class BlockMacros extends MacroInterfaceSet
 
     /**
      * {/block}
-     * {/snippet}
-     * {/snippetArea}
      * {/define}
      */
     public function macroBlockEnd(MacroNode $node, PhpWriter $writer)
     {
-        if (isset($node->data->name)) { // block, snippet, define
-            if ($asInner = $node->name === 'snippet' && $node->prefix === MacroNode::PREFIX_NONE) {
-                $node->content = $node->innerContent;
-            }
-
-            if (($node->name === 'snippet' || $node->name === 'snippetArea') && strpos($node->data->name,
-                    '$') === false
-            ) {
-                $type = $node->name === 'snippet' ? SnippetDriver::TYPE_STATIC : SnippetDriver::TYPE_AREA;
-                $node->content = '<?php $this->global->snippetDriver->enter('
-                    . $writer->formatWord(substr($node->data->name, 1))
-                    . ', "' . $type . '"); ?>'
-                    . preg_replace('#(?<=\n)[ \t]+\z#', '',
-                        $node->content) . '<?php $this->global->snippetDriver->leave(); ?>';
-            }
+        if (isset($node->data->name)) { // block, define
             if (empty($node->data->leave)) {
                 if (preg_match('#\$|n:#', $node->content)) {
                     $node->content = '<?php ' . (isset($node->data->args) ? 'extract($this->params); ' . $node->data->args : 'extract($_args);') . ' ?>'
@@ -384,11 +315,6 @@ class BlockMacros extends MacroInterfaceSet
                     '$_args'
                 );
                 $node->content = '';
-            }
-
-            if ($asInner) { // n:snippet -> n:inner-snippet
-                $node->innerContent = $node->openingCode . $node->content . $node->closingCode;
-                $node->closingCode = $node->openingCode = '<?php ?>';
             }
 
             return ' '; // consume next new line
