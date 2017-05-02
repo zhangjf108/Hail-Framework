@@ -415,7 +415,7 @@ class CoreMacros extends MacroInterfaceSet
         $args = $writer->formatArgs();
 
         return $writer->write(
-            'Tracy\Debugger::barDump(' . ($args ? "($args)" : 'get_defined_vars()') . ', %var);',
+            'Hail\Tracy\Debugger::barDump(' . ($args ? "($args)" : 'get_defined_vars()') . ', %var);',
             $args ?: 'variables'
         );
     }

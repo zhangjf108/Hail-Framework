@@ -148,10 +148,6 @@ class Template
     {
         $this->prepare();
 
-        if ($this->parentName === null && isset($this->global->coreParentFinder)) {
-            $this->parentName = ($this->global->coreParentFinder)($this);
-        }
-
         Filters::$xhtml = (bool) preg_match('#xml|xhtml#', $this->contentType);
 
         if ($this->referenceType === 'import') {
