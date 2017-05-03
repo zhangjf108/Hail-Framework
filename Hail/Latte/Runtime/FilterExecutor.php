@@ -9,9 +9,9 @@ declare(strict_types=1);
 
 namespace Hail\Latte\Runtime;
 
-use Hail\Latte\Engine;
-use Hail\Latte\Helpers;
-
+use Hail\Latte\{
+    Engine, Helpers
+};
 
 /**
  * Filter executor.
@@ -66,7 +66,7 @@ class FilterExecutor
      */
     public function add($name, callable $callback)
     {
-        if ($name == null) { // intentionally ==
+        if ($name === null || $name === '') {
             array_unshift($this->_dynamic, $callback);
         } else {
             $name = strtolower($name);
@@ -80,6 +80,7 @@ class FilterExecutor
 
     /**
      * Returns all run-time filters.
+     *
      * @return string[]
      */
     public function getAll(): array
@@ -142,6 +143,7 @@ class FilterExecutor
 
     /**
      * Calls filter with FilterInfo.
+     *
      * @return mixed
      */
     public function filterContent($name, FilterInfo $info, ...$args)
@@ -152,27 +154,27 @@ class FilterExecutor
             throw new \LogicException("Filter |$name is not defined$hint");
         }
 
-        list($callback, $aware) = $this->prepareFilter($lname);
+        [$callback, $aware] = $this->prepareFilter($lname);
         if ($aware) { // FilterInfo aware filter
             array_unshift($args, $info);
 
             return $callback(...$args);
-
-        } else { // classic filter
-            if ($info->contentType !== Engine::CONTENT_TEXT) {
-                trigger_error("Filter |$name is called with incompatible content type " . strtoupper($info->contentType)
-                    . ($info->contentType === Engine::CONTENT_HTML ? ', try to prepend |stripHtml.' : '.'),
-                    E_USER_WARNING);
-            }
-            $res = ($this->$name)(...$args);
-            if ($res instanceof HtmlStringInterface) {
-                trigger_error("Filter |$name should be changed to content-aware filter.");
-                $info->contentType = Engine::CONTENT_HTML;
-                $res = $res->__toString();
-            }
-
-            return $res;
         }
+
+        // classic filter
+        if ($info->contentType !== Engine::CONTENT_TEXT) {
+            trigger_error("Filter |$name is called with incompatible content type " . strtoupper($info->contentType)
+                . ($info->contentType === Engine::CONTENT_HTML ? ', try to prepend |stripHtml.' : '.'),
+                E_USER_WARNING);
+        }
+        $res = ($this->$name)(...$args);
+        if ($res instanceof HtmlStringInterface) {
+            trigger_error("Filter |$name should be changed to content-aware filter.");
+            $info->contentType = Engine::CONTENT_HTML;
+            $res = $res->__toString();
+        }
+
+        return $res;
     }
 
 

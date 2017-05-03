@@ -25,7 +25,7 @@ use Hail\Latte;
  * @property-read mixed $nextValue
  * @internal
  */
-class CachingIterator extends \CachingIterator implements \Countable
+class CachingIterator extends \CachingIterator
 {
 	use Latte\Strict;
 
