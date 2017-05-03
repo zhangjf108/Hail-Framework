@@ -182,7 +182,7 @@ class Compiler
             $members[] = "\tpublic $$name = " . PhpHelpers::dump($value) . ';';
         }
         foreach (array_filter($this->methods) as $name => $method) {
-            $members[] = "\n\tfunction $name($method[arguments])\n\t{\n" . ($method['body'] ? "\t\t$method[body]\n" : '') . "\t}";
+            $members[] = "\n\tpublic function $name($method[arguments])\n\t{\n" . ($method['body'] ? "\t\t$method[body]\n" : '') . "\t}";
         }
 
         return "<?php\n"

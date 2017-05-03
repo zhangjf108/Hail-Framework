@@ -44,11 +44,8 @@ class Engine implements TemplateInterface
     /** @var Runtime\FilterExecutor */
     private $filters;
 
-    /** @var array */
-    private $providers = [];
-
-    /** @var string */
-    private $contentType = self::CONTENT_HTML;
+	/** @var string */
+	private $contentType = self::CONTENT_HTML;
 
     /** @var string */
     private $baseDirectory;
@@ -148,8 +145,8 @@ class Engine implements TemplateInterface
             $this->loadTemplate($name);
         }
 
-        return new $class($this, $params, $this->filters, $this->providers, $name);
-    }
+		return new $class($this, $params, $this->filters, $name);
+	}
 
 
     /**
@@ -334,29 +331,6 @@ class Engine implements TemplateInterface
 
         return $this;
     }
-
-
-    /**
-     * Adds new provider.
-     *
-     * @return static
-     */
-    public function addProvider($name, $value)
-    {
-        $this->providers[$name] = $value;
-
-        return $this;
-    }
-
-
-    /**
-     * Returns all providers.
-     */
-    public function getProviders(): array
-    {
-        return $this->providers;
-    }
-
 
     /**
      * @return static

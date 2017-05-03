@@ -130,6 +130,8 @@ class MacroSet implements MacroInterface
         } elseif (!$end) {
             return false;
         }
+
+        return null;
     }
 
 

@@ -537,8 +537,10 @@ class CoreMacros extends MacroSet
         $compiler->setContentType($type);
 
         if (strpos($node->args, '/') && !$node->htmlNode) {
-            return $writer->write('if (empty($this->global->coreCaptured) && in_array($this->getReferenceType(), ["extends", NULL], TRUE)) header(%var);',
-                "Content-Type: $node->args");
+            return $writer->write("if (in_array(\$this->getReferenceType(), ['extends', null], true)) {\n" .
+                "if (!\$this->global->coreCaptured) {\nheader(%var);\n} else {\n\$engine = \$this->getEngine();\n" .
+                "if (\$engine->response) {\n\$engine->response = \$engine->response->withHeader('Content-Type', %var);\n}\n}\n}",
+                "Content-Type: $node->args", $node->args);
         }
     }
 
