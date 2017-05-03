@@ -37,7 +37,7 @@ use Hail\Latte\Compiler\{
  * - {contentType ...} HTTP Content-Type header
  * - {l} {r} to display { }
  */
-class CoreMacros extends BaseMacro
+class CoreMacros extends MacroSet
 {
     /** @var array */
     private $overwrittenVars;

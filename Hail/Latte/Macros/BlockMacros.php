@@ -19,7 +19,7 @@ use Hail\Latte\Compiler\{
 /**
  * Block macros.
  */
-class BlockMacros extends BaseMacro
+class BlockMacros extends MacroSet
 {
     /** @var array */
     private $namedBlocks = [];

@@ -20,9 +20,9 @@ use Hail\Latte\Exception\CompileException;
 
 
 /**
- * Base IMacro implementation. Allows add multiple macros.
+ * Base MacroInterface implementation. Allows add multiple macros.
  */
-class BaseMacro implements MacroInterface
+class MacroSet implements MacroInterface
 {
     use Strict;
 

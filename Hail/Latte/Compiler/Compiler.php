@@ -30,10 +30,10 @@ class Compiler
     /** @var int  position on source template */
     private $position;
 
-    /** @var array of [name => IMacro[]] */
+    /** @var array of [name => MacroInterface[]] */
     private $macros;
 
-    /** @var int[] IMacro flags */
+    /** @var int[] MacroInterface flags */
     private $flags;
 
     /** @var HtmlNode */
@@ -98,7 +98,7 @@ class Compiler
 
 
     /**
-     * Adds new macro with IMacro flags.
+     * Adds new macro with MacroInterface flags.
      * @return static
      */
     public function addMacro(string $name, MacroInterface $macro, $flags = null)
