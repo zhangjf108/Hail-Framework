@@ -19,7 +19,7 @@ use Hail\Latte\Compiler\{
 /**
  * Block macros.
  */
-class BlockMacros extends MacroInterfaceSet
+class BlockMacros extends BaseMacro
 {
     /** @var array */
     private $namedBlocks = [];
@@ -51,9 +51,10 @@ class BlockMacros extends MacroInterfaceSet
 
     /**
      * Initializes before template parsing.
+     *
      * @return void
      */
-    public function initialize()
+    public function initialize(): void
     {
         $this->namedBlocks = [];
         $this->blockTypes = [];
@@ -65,7 +66,7 @@ class BlockMacros extends MacroInterfaceSet
     /**
      * Finishes template parsing.
      */
-    public function finalize()
+    public function finalize(): ?array
     {
         $compiler = $this->getCompiler();
         $functions = [];
@@ -137,6 +138,7 @@ class BlockMacros extends MacroInterfaceSet
 
     /**
      * {includeblock "file"}
+     *
      * @deprecated
      */
     public function macroIncludeBlock(MacroNode $node, PhpWriter $writer)

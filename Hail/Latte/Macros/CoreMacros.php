@@ -37,7 +37,7 @@ use Hail\Latte\Compiler\{
  * - {contentType ...} HTTP Content-Type header
  * - {l} {r} to display { }
  */
-class CoreMacros extends MacroInterfaceSet
+class CoreMacros extends BaseMacro
 {
     /** @var array */
     private $overwrittenVars;
@@ -90,9 +90,10 @@ class CoreMacros extends MacroInterfaceSet
 
     /**
      * Initializes before template parsing.
+     *
      * @return void
      */
-    public function initialize()
+    public function initialize(): void
     {
         $this->overwrittenVars = [];
     }
@@ -100,9 +101,10 @@ class CoreMacros extends MacroInterfaceSet
 
     /**
      * Finishes template parsing.
+     *
      * @return array|NULL [prolog, epilog]
      */
-    public function finalize()
+    public function finalize(): ?array
     {
         $code = '';
         foreach ($this->overwrittenVars as $var => $lines) {
