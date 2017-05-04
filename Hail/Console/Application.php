@@ -11,6 +11,7 @@
 namespace Hail\Console;
 
 use Hail\Console\Exception\ExceptionInterface;
+use Hail\Console\Formatter\OutputFormatter;
 use Hail\Console\Input\{
 	InputInterface,
 	StreamableInputInterface,
