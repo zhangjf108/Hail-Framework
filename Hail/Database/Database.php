@@ -107,21 +107,31 @@ class Database
 
 			switch ($this->type) {
 				case 'mariadb':
-					$attr['type'] = 'mysql';
+					$attr['driver'] = 'mysql';
 				case 'mysql':
 					if (isset($options['socket'])) {
 						$attr['unix_socket'] = $options['socket'];
 						unset($attr['host'], $attr['port']);
 					}
 
+                    if (isset($options['charset'])) {
+                        $attr['charset'] = $options['charset'];
+                    }
+
 					$this->quote = '`';
 					break;
 
 				case 'pgsql':
+                    if (isset($options['charset'])) {
+                        $commands[] = "SET NAMES '{$options['charset']}'";
+                    }
 					break;
 
 				case 'sybase':
 					$attr['driver'] = 'dblib';
+                    if (isset($options['charset'])) {
+                        $attr['charset'] = $options['charset'];
+                    }
 					break;
 
 				case 'oracle':
@@ -144,6 +154,10 @@ class Database
 					$commands[] = 'SET QUOTED_IDENTIFIER ON';
 					// Make ANSI_NULLS is ON for NULL value
 					$commands[] = 'SET ANSI_NULLS ON';
+
+                    if (isset($options['charset'])) {
+                        $commands[] = "SET NAMES '{$options['charset']}'";
+                    }
 					break;
 
 				case 'sqlite':
@@ -158,7 +172,6 @@ class Database
 		$driver = $attr['driver'];
 		unset($attr['driver']);
 
-
 		$stack = [];
 		foreach ($attr as $key => $value) {
 			if ($value === null) {
@@ -171,16 +184,7 @@ class Database
 				$stack[] = $key . '=' . $value;
 			}
 		}
-
 		$dsn = $driver . ':' . implode($stack, ';');
-
-		if (
-			isset($options['charset']) &&
-			in_array($this->type, ['mariadb', 'mysql', 'pgsql', 'sybase', 'mssql'], true)
-
-		) {
-			$commands[] = "SET NAMES '{$options['charset']}'";
-		}
 
 		$this->event('start', Event::CONNECT);
 
