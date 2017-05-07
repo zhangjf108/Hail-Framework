@@ -109,4 +109,9 @@ class Browser
 	{
 		$this->timeout = $seconds;
 	}
+
+	public function getClient()
+    {
+        return $this->client;
+    }
 }
