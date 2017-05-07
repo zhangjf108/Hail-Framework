@@ -41,6 +41,10 @@ class MimeType
         $mimes = static::$mimes ?? static::mimes();
         $extension = strtolower(trim($extension));
 
+        if (strpos($extension, '.') !== false) {
+            $extension = substr(strrchr($extension, '.'), 1);
+        }
+
         return $mimes[$extension] ?? [];
     }
 

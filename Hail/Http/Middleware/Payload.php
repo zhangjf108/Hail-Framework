@@ -221,7 +221,7 @@ class Payload implements MiddlewareInterface
 			$options = $header['Content-Disposition']['options'];
 
 			if (isset($options['filename'])) {
-				$filename = tempnam(STORAGE_PATH . 'temp', 'php_upload_');
+				$filename = tempnam(STORAGE_PATH . 'temp', 'http_upload_');
 				$handle = fopen($filename, 'wb');
 
                 if (!self::findBoundary($stream, $handle, $boundary, $prefix, $next)) {

@@ -13,7 +13,6 @@ event:
     - Psr\EventManager\EventManagerInterface
 
 acl: Hail\Acl
-
 browser: Hail\Browser
 
 cache: "@cache.simple"
@@ -31,7 +30,6 @@ cache.pool:
     - Psr\Cache\CacheItemPoolInterface
 
 db: Hail\Factory\Database::pdo
-
 cdb: Hail\Database\Cache
 
 router:

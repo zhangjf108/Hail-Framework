@@ -2,15 +2,16 @@
 
 namespace Hail\Filesystem\Adapter;
 
-use GuzzleHttp\Psr7\Stream;
-use GuzzleHttp\Psr7\StreamWrapper;
 use OpenStack\OpenStack;
 use OpenStack\Common\Error\BadResponseError;
 use OpenStack\ObjectStore\v1\Models\Container;
 use OpenStack\ObjectStore\v1\Models\Object;
+
+use Hail\Http\Factory;
 use Hail\Filesystem\Util;
 use Hail\Filesystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
 use Hail\Filesystem\Adapter\Polyfill\StreamedCopyTrait;
+use Psr\Http\Message\StreamInterface;
 
 /**
  * Class OpenStackSwift
@@ -75,7 +76,7 @@ class OpenStackSwift extends AbstractAdapter
 
 		$type = 'content';
 
-		if (is_a($contents, 'GuzzleHttp\Psr7\Stream')) {
+		if ($contents instanceof StreamInterface) {
 			$type = 'stream';
 		}
 
@@ -91,7 +92,7 @@ class OpenStackSwift extends AbstractAdapter
 	 */
 	public function writeStream($path, $resource, array $config)
 	{
-		return $this->write($path, new Stream($resource), $config);
+		return $this->write($path, Factory::stream($resource), $config);
 	}
 
 	/**
@@ -107,7 +108,7 @@ class OpenStackSwift extends AbstractAdapter
 	 */
 	public function updateStream($path, $resource, array $config)
 	{
-		return $this->write($path, new Stream($resource), $config);
+		return $this->write($path, Factory::stream($resource), $config);
 	}
 
 	/**
@@ -214,7 +215,7 @@ class OpenStackSwift extends AbstractAdapter
 	{
 		$object = $this->getObject($path);
 		$data = $this->normalizeObject($object);
-		$data['stream'] = StreamWrapper::getResource($object->download());
+		$data['stream'] = $object->download()->detach();
 
 		return $data;
 	}

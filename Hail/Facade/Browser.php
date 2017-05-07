@@ -3,20 +3,18 @@
 namespace Hail\Facade;
 
 use Hail;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Class Browser
  *
  * @package Hail\Facade
  *
- * @method static Hail\Browser\Response get(string $url, array $params = [], array $headers = [])
- * @method static Hail\Browser\Response post(string $url, array $params = [], array $headers = [])
- * @method static Hail\Browser\Response socket(string $url, string $content)
- * @method static Hail\Browser\Response json(string $url, array $params = [], array $headers = [])
- * @method static Hail\Browser\Response head(string $url, array $headers = [])
- * @method static Hail\Browser\Response patch(string $url, array $headers = [], string $body = null)
- * @method static Hail\Browser\Response put(string $url, array $headers = [], string $body = null)
- * @method static int timeout(int $seconds)
+ * @method static ResponseInterface get(string $url, array $params = [], array $headers = [])
+ * @method static ResponseInterface post(string $url, array $params = [], array $headers = [])
+ * @method static ResponseInterface socket(string $url, string $content)
+ * @method static string json(string $url, string $content)
+ * @method static void timeout(int $seconds)
  */
 class Browser extends Facade
 {

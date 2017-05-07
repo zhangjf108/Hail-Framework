@@ -45,15 +45,26 @@ final class Factory
         return new Response($body, $statusCode, $headers, $protocolVersion, $reasonPhrase);
     }
 
-    public static function serverRequest($method, $uri = null): ServerRequestInterface
-    {
+    public static function serverRequest(
+        $method,
+        $uri = null,
+        array $headers = [],
+        $body = 'php://input',
+        string $version = '1.1',
+        array $serverParams = [],
+        array $cookies = [],
+        array $queryParams = [],
+        array $parsedBody = [],
+        array $uploadedFiles = []
+    ): ServerRequestInterface {
         if (is_array($method)) {
             return Helpers::createServer($method);
         }
 
         $uri = self::uri($uri);
 
-        return new ServerRequest($method, $uri);
+        return new ServerRequest($method, $uri, $headers, $body, $version, $serverParams, $cookies, $queryParams,
+            $parsedBody, $uploadedFiles);
     }
 
     /**
@@ -61,8 +72,10 @@ final class Factory
      *
      * @return StreamInterface
      */
-    public static function stream($body = null): StreamInterface
-    {
+    public
+    static function stream(
+        $body = null
+    ): StreamInterface {
         if ($body instanceof StreamInterface) {
             return $body;
         }
@@ -80,14 +93,18 @@ final class Factory
         return $stream;
     }
 
-    public static function streamFromFile($file, $mode = 'r'): StreamInterface
-    {
+    public
+    static function streamFromFile(
+        $file,
+        $mode = 'r'
+    ): StreamInterface {
         $resource = fopen($file, $mode);
 
         return new Stream($resource);
     }
 
-    public static function uploadedFile(
+    public
+    static function uploadedFile(
         $file,
         int $size = null,
         int $error = \UPLOAD_ERR_OK,

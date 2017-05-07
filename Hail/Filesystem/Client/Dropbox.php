@@ -9,10 +9,9 @@
 namespace Hail\Filesystem\Client;
 
 use Exception;
-use GuzzleHttp\Psr7\StreamWrapper;
-use GuzzleHttp\Client as GuzzleClient;
+use Hail\Http\Client\Client;
+use Hail\Http\Client\Exception\ClientException;
 use Psr\Http\Message\ResponseInterface;
-use GuzzleHttp\Exception\ClientException;
 
 /**
  * Class Dropbox
@@ -34,14 +33,14 @@ class Dropbox
     /** @var string */
     protected $accessToken;
 
-    /** @var \GuzzleHttp\Client */
+    /** @var Client */
     protected $client;
 
     public function __construct(string $accessToken)
     {
         $this->accessToken = $accessToken;
 
-        $this->client = new GuzzleClient([
+        $this->client = new Client([
             'headers' => [
                 'Authorization' => "Bearer {$this->accessToken}",
             ],
@@ -117,7 +116,7 @@ class Dropbox
 
         $response = $this->contentEndpointRequest('files/download', $arguments);
 
-        return StreamWrapper::getResource($response->getBody());
+        return $response->getBody()->detach();
     }
 
     /**

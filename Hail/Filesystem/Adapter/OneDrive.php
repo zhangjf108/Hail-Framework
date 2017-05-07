@@ -5,6 +5,7 @@ namespace Hail\Filesystem\Adapter;
 use Hail\Filesystem\Client\OneDrive as OneDriveClient;
 use Hail\Filesystem\Adapter\Polyfill\NotSupportingVisibilityTrait;
 use Hail\Filesystem\AdapterInterface;
+use Hail\Http\Client\Client;
 
 /**
  * Class OneDrive
@@ -32,7 +33,7 @@ class OneDrive implements AdapterInterface
 
 		$this->client = new OneDriveClient(
 			$config['token'],
-			new \GuzzleHttp\Client()
+			new Client()
 		);
 	}
 
@@ -284,7 +285,7 @@ class OneDrive implements AdapterInterface
 	private function getLastModifiedTimestampFromResponse(\StdClass $response)
 	{
 		if (!property_exists($response, 'lastModifiedDateTime')) {
-			return;
+			return null;
 		}
 
 		//date can be given with or without microseconds, try to parse from both formats

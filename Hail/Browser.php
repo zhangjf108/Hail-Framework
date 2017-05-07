@@ -2,38 +2,50 @@
 
 namespace Hail;
 
-use Hail\Browser\{
-	Request,
-	RequestBody as Body
-};
+use Hail\Http\Client\Client;
 use Hail\Util\Json;
+use Psr\Http\Message\ResponseInterface;
 
 class Browser
 {
+    protected $client;
+    protected $timeout = 10;
+    
+    public function __construct($config = [])
+    {
+        $this->client = new Client($config);
+    }
+
+    /**
+	 * @param string $url
+	 * @param array $params
+	 * @param array $headers
+	 *
+	 * @return ResponseInterface
+	 */
+	public function get(string $url, array $params = [], array $headers = [])
+	{
+		return $this->client->get($url, [
+		    'headers' => $headers,
+            'query' => $params,
+            'timeout' => $this->timeout
+        ]);
+	}
+
 	/**
 	 * @param string $url
 	 * @param array $params
 	 * @param array $headers
 	 *
-	 * @return Browser\Response
+	 * @return ResponseInterface
 	 */
-	public function get(string $url, array $params = [], array $headers = [])
+	public function post(string $url, array $params = [], array $headers = [])
 	{
-		return Request::get($url, $headers, $params);
-	}
-
-	/**
-	 * @param string $url
-	 * @param string|array $params
-	 * @param array $headers
-	 *
-	 * @return Browser\Response
-	 */
-	public function post(string $url, $params = [], array $headers = [])
-	{
-		$body = Body::form($params);
-
-		return Request::post($url, $headers, $body);
+		return $this->client->post($url, [
+		    'headers' => $headers,
+            'form_params' => $params,
+            'timeout' => $this->timeout
+        ]);
 	}
 
 	/**
@@ -57,7 +69,7 @@ class Browser
 		}
 
 		fwrite($fp, $content . "\n");
-		stream_set_timeout($fp, 5);
+		stream_set_timeout($fp, $this->timeout);
 		$return = fgets($fp, 65535);
 		fclose($fp);
 
@@ -66,76 +78,35 @@ class Browser
 
 	/**
 	 * @param string $url
-	 * @param string|array $params
+	 * @param array $params
 	 * @param array $headers
 	 *
-	 * @return Browser\Response
+	 * @return ResponseInterface
 	 */
-	public function json(string $url, $params = [], array $headers = [])
+	public function json(string $url, array $params = [], array $headers = [])
 	{
-		if (is_string($params)) {
-			$body = $params;
-		} else {
-			$body = Body::json($params);
-		}
-
-		return Request::post($url, ['Content-Type' => 'application/json'] + $headers, $body);
+        return $this->client->post($url, [
+            'headers' => $headers,
+            'json' => $params,
+            'timeout' => $this->timeout
+        ]);
 	}
 
-	/**
-	 * @param string $url
-	 * @param array $headers
-	 *
-	 * @return Browser\Response
-	 */
-	public function head(string $url, array $headers = [])
-	{
-		return Request::head($url, $headers);
-	}
+    public function __call($name, $arguments)
+    {
+        if (method_exists($this->client, $name)) {
+            return $this->client->$name(...$arguments);
+        }
 
-	/**
-	 * @param string $url
-	 * @param array $headers
-	 * @param string|null $body
-	 *
-	 * @return Browser\Response
-	 */
-	public function patch(string $url, array $headers = [], string $body = null)
-	{
-		return Request::patch($url, $headers, $body);
-	}
+        throw new \BadMethodCallException('Method not defined in HTTP client:' . $name);
+    }
 
-	/**
-	 * @param string $url
-	 * @param array $headers
-	 * @param string|null $body
-	 *
-	 * @return Browser\Response
-	 */
-	public function put(string $url, array $headers = [], string $body = null)
-	{
-		return Request::put($url, $headers, $body);
-	}
 
-	/**
-	 * @param string $url
-	 * @param array $headers
-	 * @param string|null $body
-	 *
-	 * @return Browser\Response
-	 */
-	public function delete(string $url, $headers = [], string $body = null)
-	{
-		return Request::delete($url, $headers, $body);
-	}
-
-	/**
+    /**
 	 * @param int $seconds
-	 *
-	 * @return int
 	 */
 	public function timeout(int $seconds)
 	{
-		return Request::timeout($seconds);
+		$this->timeout = $seconds;
 	}
 }
