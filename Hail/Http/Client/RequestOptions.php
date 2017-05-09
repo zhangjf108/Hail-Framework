@@ -8,7 +8,7 @@ namespace Hail\Http\Client;
  *
  * @link http://docs.guzzlephp.org/en/v6/request-options.html
  */
-final class RequestOptions
+interface RequestOptions
 {
     /**
      * allow_redirects: (bool|array) Controls redirect behavior. Pass false

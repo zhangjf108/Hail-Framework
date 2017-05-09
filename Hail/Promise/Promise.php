@@ -77,6 +77,8 @@ class Promise implements PromiseInterface
             // It's rejected so "unwrap" and throw an exception.
             throw Factory::exception($inner);
         }
+
+        return null;
     }
 
     public function getState()

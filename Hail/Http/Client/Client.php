@@ -79,14 +79,14 @@ class Client implements ClientInterface
 
     public function __call($method, $args)
     {
-        if (count($args) < 1) {
+        if (!isset($args[0])) {
             throw new \InvalidArgumentException('Magic request methods require a URI and optional options array');
         }
 
         $uri = $args[0];
         $opts = $args[1] ?? [];
 
-        return substr($method, -5) === 'Async'
+        return strrpos($method, 'Async', -5) > 0
             ? $this->requestAsync(substr($method, 0, -5), $uri, $opts)
             : $this->request($method, $uri, $opts);
     }

@@ -37,7 +37,7 @@ class HandlerStack
      */
     public static function create(callable $handler = null)
     {
-        $stack = new self($handler ?: choose_handler());
+        $stack = new self($handler ?: Helpers::chooseHandler());
         $stack->push(Middleware::httpErrors(), 'http_errors');
         $stack->push(Middleware::redirect(), 'allow_redirects');
         $stack->push(Middleware::cookies(), 'cookies');
@@ -77,14 +77,14 @@ class HandlerStack
         $depth = 0;
         $stack = [];
         if ($this->handler) {
-            $stack[] = "0) Handler: " . $this->debugCallable($this->handler);
+            $stack[] = '0) Handler: ' . $this->debugCallable($this->handler);
         }
 
         $result = '';
         foreach (array_reverse($this->stack) as $tuple) {
             $depth++;
             $str = "{$depth}) Name: '{$tuple[1]}', ";
-            $str .= "Function: " . $this->debugCallable($tuple[0]);
+            $str .= 'Function: ' . $this->debugCallable($tuple[0]);
             $result = "> {$str}\n{$result}";
             $stack[] = $str;
         }
