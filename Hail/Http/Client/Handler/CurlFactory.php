@@ -127,7 +127,7 @@ class CurlFactory implements CurlFactoryInterface
             $easy->errno,
             $curlStats
         );
-        call_user_func($easy->options['on_stats'], $stats);
+        ($easy->options['on_stats'])($stats);
     }
 
     private static function finishError(
@@ -143,8 +143,8 @@ class CurlFactory implements CurlFactoryInterface
         $factory->release($easy);
 
         // Retry when nothing is present or when curl failed to rewind.
-        if (empty($easy->options['_err_message'])
-            && (!$easy->errno || $easy->errno == 65)
+        if ((!$easy->errno || $easy->errno === 65) &&
+            empty($easy->options['_err_message'])
         ) {
             return self::retryFailedRewind($handler, $easy, $ctx);
         }

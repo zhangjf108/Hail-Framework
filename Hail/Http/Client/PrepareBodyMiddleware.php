@@ -33,13 +33,15 @@ class PrepareBodyMiddleware
         $fn = $this->nextHandler;
 
         // Don't do anything if the request has no body.
-        if ($request->getBody()->getSize() === 0) {
+        $body = $request->getBody();
+        $size = $body->getSize();
+        if ($size === 0) {
             return $fn($request, $options);
         }
 
         // Add a default content-type if possible.
         if (!$request->hasHeader('Content-Type') &&
-            ($uri = $request->getBody()->getMetadata('uri')) &&
+            ($uri = $body->getMetadata('uri')) &&
             ($type = MimeType::getMimeType($uri))
         ) {
             $request = $request->withHeader('Content-Type', $type);
@@ -49,7 +51,6 @@ class PrepareBodyMiddleware
         if (!$request->hasHeader('Content-Length')
             && !$request->hasHeader('Transfer-Encoding')
         ) {
-            $size = $request->getBody()->getSize();
             if ($size !== null) {
                 $request = $request->withHeader('Content-Length', $size);
             } else {

@@ -63,11 +63,7 @@ class Client implements ClientInterface
      */
     public function __construct(array $config = [])
     {
-        if (!isset($config['handler'])) {
-            $config['handler'] = HandlerStack::create();
-        } elseif (!is_callable($config['handler'])) {
-            throw new \InvalidArgumentException('handler must be a callable');
-        }
+        $config['handler'] = new HandlerStack();
 
         // Convert the base_uri to a UriInterface
         if (isset($config['base_uri'])) {
