@@ -2,117 +2,10 @@
 
 namespace Hail\Template\Javascript;
 
-class StaticString
-{
-    /**
-     * Wrapper for substr
-     */
-    public static function substr($string, $start, $length = null)
-    {
-        return new StringObject(mb_substr($string, $start, $length));
-    }
-
-    /**
-     * Equivelent of Javascript's String.substring
-     *
-     * @link http://www.w3schools.com/jsref/jsref_substring.asp
-     */
-    public static function substring($string, $start, $end)
-    {
-        if (empty($length)) {
-            return self::substr($string, $start);
-        }
-
-        return self::substr($string, $end - $start);
-    }
-
-    public function charAt($str, $point)
-    {
-        return self::substr($str, $point, 1);
-    }
-
-    public function charCodeAt($str, $point)
-    {
-        return ord(self::substr($str, $point, 1));
-    }
-
-    public static function concat(...$args)
-    {
-        $r = '';
-        foreach ($args as $arg) {
-            $r .= (string) $arg;
-        }
-
-        return $r;
-    }
-
-    public static function fromCharCode($code)
-    {
-        return chr($code);
-    }
-
-    public static function indexOf($haystack, $needle, $offset = 0)
-    {
-        return mb_strpos($haystack, $needle, $offset);
-    }
-
-    public static function lastIndexOf($haystack, $needle, $offset = 0)
-    {
-        return mb_strrpos($haystack, $needle, $offset);
-    }
-
-    public static function match($haystack, $regex)
-    {
-        preg_match_all($regex, $haystack, $matches, PREG_PATTERN_ORDER);
-
-        return new ArrayObject($matches[0]);
-    }
-
-    public static function replace($haystack, $needle, $replace, $regex = false)
-    {
-        if ($regex) {
-            $r = preg_replace($needle, $replace, $haystack);
-        } else {
-            $r = str_replace($needle, $replace, $haystack);
-        }
-
-        return new StringObject($r);
-    }
-
-    public static function strlen($string)
-    {
-        return mb_strlen($string);
-    }
-
-    public static function slice($string, $start, $end = null)
-    {
-        return self::substring($string, $start, $end);
-    }
-
-    public static function toLowerCase($string)
-    {
-        return new StringObject(mb_strtolower($string));
-    }
-
-    public static function toUpperCase($string)
-    {
-        return new StringObject(mb_strtoupper($string));
-    }
-
-    public static function split($string, $at = '')
-    {
-        if (empty($at)) {
-            return new ArrayObject(str_split($string));
-        }
-
-        return new ArrayObject(explode($at, $string));
-    }
-}
-
 /**
  * Class StringObject
  *
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
+ * @see     https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
  *
  * @package Hail\Template\Javascript
  */
@@ -123,9 +16,15 @@ class StringObject implements \ArrayAccess
      */
     private $value;
 
+    /**
+     * @var int
+     */
+    public $length;
+
     public function __construct(string $string)
     {
         $this->value = $string;
+        $this->length = mb_strlen($string);
     }
 
     public function __toString()
@@ -133,9 +32,14 @@ class StringObject implements \ArrayAccess
         return $this->value;
     }
 
-    /* end magic methods */
+    public function withString($string, $length = null)
+    {
+        $new = clone $this;
+        $new->value = $string;
+        $new->length = $length ?? mb_strlen($string);
 
-    /* ArrayAccess Methods */
+        return $new;
+    }
 
     /** offsetExists ( mixed $index )
      *
@@ -143,7 +47,7 @@ class StringObject implements \ArrayAccess
      */
     public function offsetExists($index)
     {
-        return !empty($this->value[$index]);
+        return $index >= 0 && $index < $this->length;
     }
 
     /* offsetGet ( mixed $index )
@@ -152,7 +56,9 @@ class StringObject implements \ArrayAccess
      */
     public function offsetGet($index)
     {
-        return StaticString::substr($this->value, $index, 1)->toString();
+        return $this->withString(
+            mb_substr($this->value, $index, 1), 1
+        );
     }
 
     /* offsetSet ( mixed $index, mixed $val )
@@ -161,8 +67,9 @@ class StringObject implements \ArrayAccess
      */
     public function offsetSet($index, $val)
     {
-        $this->value = StaticString::substring($this->value, 0, $index) . $val . StaticString::substring($this->value,
-                $index + 1, StaticString::strlen($this->value));
+        $val = (string) $val;
+        $this->value = mb_substr($this->value, 0, $index) . $val . mb_substr($this->value, $index);
+        $this->length += mb_strlen($val);
     }
 
     /* offsetUnset ( mixed $index )
@@ -171,121 +78,177 @@ class StringObject implements \ArrayAccess
      */
     public function offsetUnset($index)
     {
-        $this->value = StaticString::substr($this->value, 0, $index) . StaticString::substr($this->value, $index + 1);
+        $this->value = mb_substr($this->value, 0, $index) . mb_substr($this->value, $index + 1);
+        --$this->length;
     }
 
-    public static function create($obj)
-    {
-        if ($obj instanceof StringObject) {
-            return $obj;
-        }
-
-        return new StringObject($obj);
-    }
-
-    /* public methods */
     public function substr($start, $length)
     {
-        return StaticString::substr($this->value, $start, $length);
+        return $this->withString(
+            mb_substr($this->value, $start, $length)
+        );
     }
 
     public function substring($start, $end)
     {
-        return StaticString::substring($this->value, $start, $end);
+        $index = max(0, min($start, $end));
+        $end = max(0, max($start, $end));
+        $length = $end - $index;
+
+        return $this->substr($index, $length);
     }
 
     public function charAt($point)
     {
-        return StaticString::substr($this->value, $point, 1);
+        return $this->offsetGet($point);
     }
 
-    public function charCodeAt($point)
+
+    public function indexOf($needle, $offset = 0)
     {
-        return ord(StaticString::substr($this->value, $point, 1));
+        $pos = mb_strpos($this->value, $needle, $offset);
+
+        return $pos === false ? -1 : $pos;
     }
 
-    public function indexOf($needle, $offset)
+    public function lastIndexOf($needle, $offset = 0)
     {
-        return StaticString::indexOf($this->value, $needle, $offset);
-    }
+        $pos = mb_strrpos($this->value, $needle, $offset);
 
-    public function lastIndexOf($needle)
-    {
-        return StaticString::lastIndexOf($this->value, $needle);
+        return $pos === false ? -1 : $pos;
     }
 
     public function match($regex)
     {
-        return StaticString::match($this->value, $regex);
+        preg_match_all($regex, $this->value, $matches, PREG_PATTERN_ORDER);
+
+        return new ArrayObject($matches[0]);
     }
 
     public function replace($search, $replace, $regex = false)
     {
-        return StaticString::replace($this->value, $search, $replace, $regex);
+        if ($search === '') {
+            return clone $this;
+        }
+
+        return $this->withString(
+            $regex ? preg_replace($search, $replace, $this->value) :
+                str_replace($search, $replace, $this->value)
+        );
     }
 
-    public function first()
+    public function search($search, $regex = false)
     {
-        return StaticString::substr($this->value, 0, 1);
-    }
+        if ($regex) {
+            $first = preg_split($search, $this->value)[0];
 
-    public function last()
-    {
-        return StaticString::substr($this->value, -1, 1);
-    }
+            return $first === $this->value ? -1 : mb_strlen($first) - 1;
+        }
 
-    public function search($search, $offset = null)
-    {
-        return $this->indexOf($search, $offset);
+        return $this->indexOf($search);
     }
 
     public function slice($start, $end = null)
     {
-        return StaticString::slice($this->value, $start, $end);
+        if ($start >= 0) {
+            if ($end >= 0) {
+                return $this->substring($start, $end);
+            }
+
+            return $this->substr($start, $end);
+        }
+
+        if ($end < 0 && $end > $start) {
+            return $this->substr($start, $end);
+        }
+
+        return $this->withString('', 0);
     }
 
     public function toLowerCase()
     {
-        return StaticString::toLowerCase($this->value);
+        return $this->withString(
+            mb_strtolower($this->value),
+            $this->length
+        );
     }
 
     public function toUpperCase()
     {
-        return StaticString::toUpperCase($this->value);
-    }
-
-    public function toUpper()
-    {
-        return $this->toUpperCase();
-    }
-
-    public function toLower()
-    {
-        return $this->toLowerCase();
+        return $this->withString(
+            mb_strtoupper($this->value),
+            $this->length
+        );
     }
 
     public function split($at = '')
     {
-        return StaticString::split($this->value, $at);
+        $at = (string) $at;
+
+        if ($at === '') {
+            return new ArrayObject(str_split($this->value));
+        }
+
+        return new ArrayObject(explode($at, $this->value));
     }
 
     public function trim($charlist = null)
     {
-        return new StringObject(trim($this->value, $charlist));
+        return $this->withString(
+            trim($this->value, $charlist)
+        );
     }
 
     public function ltrim($charlist = null)
     {
-        return new StringObject(ltrim($this->value, $charlist));
+        return $this->withString(
+            ltrim($this->value, $charlist)
+        );
     }
 
     public function rtrim($charlist = null)
     {
-        return new StringObject(rtrim($this->value, $charlist));
+        return $this->withString(
+            rtrim($this->value, $charlist)
+        );
     }
 
-    public function toString()
+    public function concat(...$args)
     {
-        return $this->__toString();
+        $str = $this->value;
+        foreach ($args as $v) {
+            $str .= (string) $v;
+        }
+
+        return $this->withString($str);
+    }
+
+    public function startWith($search, int $offset = 0)
+    {
+        return mb_strpos($this->value, (string) $search) === $offset;
+    }
+
+    public function endWith($search, int $length = null)
+    {
+        if ($length === null) {
+            $value = $this->value;
+        } else {
+            $value = mb_substr($this->value, 0, $length);
+        }
+
+        return mb_strpos($value, $search, strlen($search)) !== false;
+    }
+
+    public function includes($search, int $offset = 0)
+    {
+        return mb_strpos($this->value, $search, $offset) !== false;
+    }
+
+    public function repeat($count)
+    {
+        $count = (int) $count;
+        return $this->withString(
+            str_repeat($this->value, $count)
+        );
     }
 }

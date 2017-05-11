@@ -5,97 +5,220 @@ namespace Hail\Template\Javascript;
 /**
  * Class ArrayObject
  *
- * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
+ * @see     https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
  *
  * @package Hail\Template\Javascript
  */
-class ArrayObject extends \ArrayObject
+class ArrayObject implements \ArrayAccess, \IteratorAggregate
 {
-    private static $ret_obj = true;
+    /**
+     * @var array
+     */
+    private $array;
 
-    public function add()
+    /**
+     * @var int
+     */
+    public $length;
+
+    public function __construct($array)
     {
-        $val = 0;
-        foreach ($this as $vals) {
-            $val += $vals;
+        if ($array instanceof ArrayObject) {
+            $array = $array->array;
+        } else {
+            $array = (array) $array;
         }
 
-        return $val;
+        $this->array = $array;
+        $this->length = count($array);
     }
 
-    public function get($i)
+    public function withArray($array, $length = null)
     {
-        $val = $this->offsetGet($i);
-        if (is_array($val)) {
-            return new self($val);
-        }
-        if (is_string($val) && self::$ret_obj) {
-            return new StringObject($val);
+        if ($array instanceof ArrayObject) {
+            $array = $array->array;
+        } else {
+            $array = (array) $array;
         }
 
-        return $val;
+        $new = clone $this;
+        $new->array = $array;
+        $new->length = $length ?? count($array);
+
+        return $new;
     }
 
-    public function each(callable $callback)
+    public function offsetExists($offset)
     {
-        foreach ($this as $key => $val) {
-            $callback($val, $key, $this);
+        return array_key_exists($offset, $this->array);
+    }
+
+    public function offsetGet($offset)
+    {
+        $value = $this->array[$offset] ?? null;
+
+        if ($value) {
+            if (is_array($value)) {
+                return $this->withArray($value);
+            }
+
+            if (is_string($value)) {
+                return new StringObject($value);
+            }
+        }
+
+        return $value;
+    }
+
+
+    public function offsetSet($offset, $value)
+    {
+        $this->array[$offset] = $value;
+        if ($offset > $this->length) {
+            for ($i = $this->length; $i < $offset; $i++) {
+                $this->array[$i] = null;
+            }
+
+            $this->length = count($this->array);
+        }
+    }
+
+
+    public function offsetUnset($offset)
+    {
+        $this->array[$offset] = null;
+    }
+
+    public function getIterator()
+    {
+        return new \ArrayIterator($this->array);
+    }
+
+    public function concat(...$args)
+    {
+        array_unshift($args, $this->array);
+
+        return $this->withArray(
+            array_merge(...$args)
+        );
+    }
+
+    public function push(...$args)
+    {
+        foreach ($args as $v) {
+            $this->array[] = $v;
+            ++$this->length;
         }
 
         return $this;
     }
 
-    public function set($i, $v)
+    public function pop()
     {
-        $this->offsetSet($i, $v);
+        $return = array_pop($this->array);
+        --$this->length;
 
-        return $this;
+        return $return;
     }
 
-    public function push($value)
+    public function shift()
     {
-        $this[] = $value;
+        $return = array_shift($this->array);
+        --$this->length;
 
-        return $this;
+        return $return;
     }
 
     public function join($paste = '')
     {
-        return implode($paste, $this->getArrayCopy());
+        return new StringObject(
+            implode($paste, $this->array)
+        );
+    }
+
+    public function fill($value, $start = 0, int $end = null)
+    {
+        if ($end === null) {
+            $end = $this->length;
+        }
+
+        return $this->withArray(
+            array_fill($start, $end - $start, $value)
+        );
+    }
+
+    public function includes($search, $offset = 0)
+    {
+        return $this->indexOf($search, $offset) !== -1;
+    }
+
+    public function indexOf($search, $offset = 0)
+    {
+        $array = $offset === 0 ? $this->array : array_slice($this->array, $offset);
+        $key = array_search($search, $array, true);
+        if ($key === false) {
+            return -1;
+        }
+
+        return $key + $offset;
+    }
+
+    public function lastIndexOf($search, $offset = null)
+    {
+        $array = $offset === null ? $this->array : array_slice($this->array, 0, $offset + 1);
+        $key = array_search($search, $array, true);
+
+        if ($key === false) {
+            return -1;
+        }
+
+        return $key;
+    }
+
+    public function reverse()
+    {
+        return $this->withArray(
+            array_reverse($this->array),
+            $this->length
+        );
+    }
+
+    public function slice($start = 0, $end = null)
+    {
+        if ($end === null) {
+            $end = $this->length;
+        }
+
+        return $this->withArray(
+            array_slice($this->array, $start, $end - $start)
+        );
     }
 
     public function sort()
     {
-        $this->asort();
+        sort($this->array);
 
         return $this;
     }
 
-    public function toArray()
+    public function toString()
     {
-        return $this->getArrayCopy();
+        return new StringObject(implode(',', $this->array));
     }
 
-    public function natsort()
+    public function unshift(...$args)
     {
-        parent::natsort();
+        array_unshift($this->array, ...$args);
+        $this->length += count($args);
 
         return $this;
     }
 
-    public function rsort()
+    public function splice($start, $delete = 0, ...$items)
     {
-        parent::uasort([self::class, 'sort_alg']);
+        $remove = array_splice($this->array, $start, $delete, ...$items);
+        $this->length = count($this->array);
 
-        return $this;
-    }
-
-    public static function sort_alg($a, $b)
-    {
-        if ($a === $b) {
-            return 0;
-        }
-
-        return ($a < $b) ? 1 : -1;
+        return $this->withArray($remove);
     }
 }

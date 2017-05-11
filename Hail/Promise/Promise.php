@@ -63,14 +63,11 @@ class Promise implements PromiseInterface
     {
         $this->waitIfPending();
 
-        $inner = $this->result instanceof PromiseInterface
-            ? $this->result->wait($unwrap)
-            : $this->result;
+        $isPromise = $this->result instanceof PromiseInterface;
+        $inner = $isPromise ? $this->result->wait($unwrap) : $this->result;
 
         if ($unwrap) {
-            if ($this->result instanceof PromiseInterface
-                || $this->state === self::FULFILLED
-            ) {
+            if ($isPromise || $this->state === self::FULFILLED) {
                 return $inner;
             }
 
@@ -150,7 +147,7 @@ class Promise implements PromiseInterface
 
         // If the value was not a settled promise or a thenable, then resolve
         // it in the task queue using the correct ID.
-        if (!method_exists($value, 'then')) {
+        if (!$value instanceof PromiseInterface) {
             $id = $state === self::FULFILLED ? 1 : 2;
             // It's a success, so resolve the handlers in the queue.
             Factory::queue()->add(static function () use ($id, $value, $handlers) {
@@ -158,9 +155,7 @@ class Promise implements PromiseInterface
                     self::callHandler($id, $value, $handler);
                 }
             });
-        } elseif ($value instanceof Promise
-            && $value->getState() === self::PENDING
-        ) {
+        } elseif ($value instanceof Promise && $value->getState() === self::PENDING) {
             // We can just merge our handlers onto the next promise.
             $value->handlers = array_merge($value->handlers, $handlers);
         } else {
@@ -268,12 +263,14 @@ class Promise implements PromiseInterface
 
                 if ($result->result instanceof Promise) {
                     $result = $result->result;
-                } else {
-                    if ($result->result instanceof PromiseInterface) {
-                        $result->result->wait(false);
-                    }
-                    break;
+                    continue;
                 }
+
+                if ($result->result instanceof PromiseInterface) {
+                    $result->result->wait(false);
+                }
+
+                break;
             }
         }
     }
