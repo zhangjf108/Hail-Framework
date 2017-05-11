@@ -1,9 +1,9 @@
 <?php
+
 namespace Hail\Http\Client;
 
 use Hail\Promise\Factory;
 use Hail\Promise\PromiseInterface;
-use Hail\Promise\RejectedPromise;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -13,7 +13,7 @@ use Psr\Http\Message\ResponseInterface;
  */
 class RetryMiddleware
 {
-    /** @var callable  */
+    /** @var callable */
     private $nextHandler;
 
     /** @var callable */
@@ -48,7 +48,7 @@ class RetryMiddleware
      */
     public static function exponentialDelay($retries)
     {
-        return (int) pow(2, $retries - 1);
+        return (int) 2 ** ($retries - 1);
     }
 
     /**
@@ -64,6 +64,7 @@ class RetryMiddleware
         }
 
         $fn = $this->nextHandler;
+
         return $fn($request, $options)
             ->then(
                 $this->onFulfilled($request, $options),
@@ -74,15 +75,10 @@ class RetryMiddleware
     private function onFulfilled(RequestInterface $req, array $options)
     {
         return function ($value) use ($req, $options) {
-            if (!call_user_func(
-                $this->decider,
-                $options['retries'],
-                $req,
-                $value,
-                null
-            )) {
+            if (!($this->decider)($options['retries'], $req, $value, null)) {
                 return $value;
             }
+
             return $this->doRetry($req, $options, $value);
         };
     }
@@ -90,22 +86,17 @@ class RetryMiddleware
     private function onRejected(RequestInterface $req, array $options)
     {
         return function ($reason) use ($req, $options) {
-            if (!call_user_func(
-                $this->decider,
-                $options['retries'],
-                $req,
-                null,
-                $reason
-            )) {
+            if (!($this->decider)($options['retries'], $req, null, $reason)) {
                 return Factory::rejection($reason);
             }
+
             return $this->doRetry($req, $options);
         };
     }
 
     private function doRetry(RequestInterface $request, array $options, ResponseInterface $response = null)
     {
-        $options['delay'] = call_user_func($this->delay, ++$options['retries'], $response);
+        $options['delay'] = ($this->delay)(++$options['retries'], $response);
 
         return $this($request, $options);
     }

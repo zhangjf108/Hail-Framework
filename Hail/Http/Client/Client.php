@@ -63,7 +63,9 @@ class Client implements ClientInterface
      */
     public function __construct(array $config = [])
     {
-        $config['handler'] = new HandlerStack();
+        if (!isset($config['handler'])) {
+            $config['handler'] = HandlerStack::default();
+        }
 
         // Convert the base_uri to a UriInterface
         if (isset($config['base_uri'])) {
@@ -173,8 +175,8 @@ class Client implements ClientInterface
         // We can only trust the HTTP_PROXY environment variable in a CLI
         // process due to the fact that PHP has no reliable mechanism to
         // get environment variables that start with "HTTP_".
-        if (PHP_SAPI === 'cli' && getenv('HTTP_PROXY')) {
-            $defaults['proxy']['http'] = getenv('HTTP_PROXY');
+        if (PHP_SAPI === 'cli' && ($proxy = getenv('HTTP_PROXY'))) {
+            $defaults['proxy']['http'] = $proxy;
         }
 
         if ($proxy = getenv('HTTPS_PROXY')) {
@@ -197,7 +199,7 @@ class Client implements ClientInterface
             $this->config['headers'] = ['User-Agent' => Helpers::defaultUserAgent()];
         } else {
             // Add the User-Agent header if one was not already set.
-            foreach (array_keys($this->config['headers']) as $name) {
+            foreach ($this->config['headers'] as $name => $_) {
                 if (strtolower($name) === 'user-agent') {
                     return;
                 }

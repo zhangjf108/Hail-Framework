@@ -176,12 +176,7 @@ class CurlFactory implements CurlFactoryInterface
             );
         }
 
-        $message = sprintf(
-            'cURL error %s: %s (%s)',
-            $ctx['errno'],
-            $ctx['error'],
-            'see http://curl.haxx.se/libcurl/c/libcurl-errors.html'
-        );
+        $message = "cURL error {$ctx['errno']}: {$ctx['error']} (see http://curl.haxx.se/libcurl/c/libcurl-errors.html)";
 
         // Create a connection exception if it was a specific error code.
         $error = isset($connectionErrors[$easy->errno])
@@ -207,13 +202,18 @@ class CurlFactory implements CurlFactoryInterface
         }
 
         $version = (string) $easy->request->getProtocolVersion();
-        if ($version === '1.1') {
-            $conf[CURLOPT_HTTP_VERSION] = CURL_HTTP_VERSION_1_1;
-        } elseif ($version === '2.0') {
-            $conf[CURLOPT_HTTP_VERSION] = CURL_HTTP_VERSION_2_0;
-        } else {
-            $conf[CURLOPT_HTTP_VERSION] = CURL_HTTP_VERSION_1_0;
+        switch ($version) {
+            case '1.1':
+                $version = CURL_HTTP_VERSION_1_1;
+                break;
+            case '2.0':
+                $version = CURL_HTTP_VERSION_2_0;
+                break;
+            default:
+                $version = CURL_HTTP_VERSION_1_0;
+                break;
         }
+        $conf[CURLOPT_HTTP_VERSION] = $version;
 
         return $conf;
     }

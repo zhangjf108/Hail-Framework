@@ -3,13 +3,14 @@
 namespace Hail;
 
 use Hail\Http\Client\Client;
+use Hail\Http\Client\RequestOptions;
 use Hail\Util\Json;
 use Psr\Http\Message\ResponseInterface;
 
 class Browser
 {
     protected $client;
-    protected $timeout = 10;
+    protected $timeout = 5;
     
     public function __construct($config = [])
     {
@@ -26,9 +27,9 @@ class Browser
 	public function get(string $url, array $params = [], array $headers = [])
 	{
 		return $this->client->get($url, [
-		    'headers' => $headers,
-            'query' => $params,
-            'timeout' => $this->timeout
+		    RequestOptions::HEADERS => $headers,
+            RequestOptions::QUERY => $params,
+            RequestOptions::TIMEOUT => $this->timeout
         ]);
 	}
 
@@ -42,9 +43,9 @@ class Browser
 	public function post(string $url, array $params = [], array $headers = [])
 	{
 		return $this->client->post($url, [
-		    'headers' => $headers,
-            'form_params' => $params,
-            'timeout' => $this->timeout
+		    RequestOptions::HEADERS => $headers,
+            RequestOptions::FORM_PARAMS => $params,
+            RequestOptions::TIMEOUT => $this->timeout
         ]);
 	}
 
@@ -60,7 +61,7 @@ class Browser
 		$errstr = '';
 
 		$url = parse_url($url);
-		$fp = fsockopen($url['host'], $url['port'], $errno, $errstr, 3);
+		$fp = fsockopen($url['host'], $url['port'], $errno, $errstr, $this->timeout);
 		if (!$fp) {
 			return Json::encode([
 				'ret' => $errno,
@@ -86,9 +87,9 @@ class Browser
 	public function json(string $url, array $params = [], array $headers = [])
 	{
         return $this->client->post($url, [
-            'headers' => $headers,
-            'json' => $params,
-            'timeout' => $this->timeout
+            RequestOptions::HEADERS => $headers,
+            RequestOptions::JSON => $params,
+            RequestOptions::TIMEOUT => $this->timeout
         ]);
 	}
 
@@ -100,7 +101,6 @@ class Browser
 
         throw new \BadMethodCallException('Method not defined in HTTP client:' . $name);
     }
-
 
     /**
 	 * @param int $seconds

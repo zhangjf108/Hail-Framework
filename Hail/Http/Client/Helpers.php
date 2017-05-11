@@ -91,21 +91,31 @@ class Helpers
      */
     public static function chooseHandler()
     {
-        $handler = Proxy::wrapSync(
-            new CurlMultiHandler(),
-            new CurlHandler()
-        );
+        static $curl, $stream;
 
-        if (ini_get('allow_url_fopen')) {
-            $handler = $handler
-                ? Proxy::wrapStreaming($handler, new StreamHandler())
-                : new StreamHandler();
-        } elseif (!$handler) {
-            throw new \RuntimeException('Hail\Http\Client requires cURL, the '
-                . 'allow_url_fopen ini setting, or a custom HTTP handler.');
+        if ($curl === null) {
+            $curl = extension_loaded('curl');
         }
 
-        return $handler;
+        if ($stream === null) {
+            $curl = (bool) ini_get('allow_url_fopen');
+        }
+
+        if (!$curl && !$stream) {
+            throw new \RuntimeException('Hail\Http\Client requires cURL, the allow_url_fopen ini setting, or a custom HTTP handler.');
+        }
+
+        return function (RequestInterface $request, array $options) use ($curl, $stream) {
+            if (!$curl || (!empty($options['stream']) && $stream)) {
+                $handler = new StreamHandler();
+            } elseif (empty($options[RequestOptions::SYNCHRONOUS])) {
+                $handler = new CurlMultiHandler();
+            } else {
+                $handler = new CurlHandler();
+            }
+
+            return $handler($request, $options);
+        };
     }
 
     /**
@@ -118,7 +128,7 @@ class Helpers
         static $defaultAgent = '';
 
         if (!$defaultAgent) {
-            $defaultAgent = 'HAIL-HTTP-Client/' . Client::VERSION;
+            $defaultAgent = 'HailHttp/' . Client::VERSION;
             if (extension_loaded('curl') && function_exists('curl_version')) {
                 $defaultAgent .= ' curl/' . \curl_version()['version'];
             }

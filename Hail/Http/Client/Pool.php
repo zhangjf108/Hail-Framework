@@ -52,7 +52,7 @@ class Pool implements PromisorInterface
         }
 
         $iterable = Factory::iterator($requests);
-        $requests = function () use ($iterable, $client, $opts) {
+        $fn = function () use ($iterable, $client, $opts) {
             foreach ($iterable as $key => $rfn) {
                 if ($rfn instanceof RequestInterface) {
                     yield $key => $client->sendAsync($rfn, $opts);
@@ -67,7 +67,7 @@ class Pool implements PromisorInterface
             }
         };
 
-        $this->each = new EachPromise($requests(), $config);
+        $this->each = new EachPromise($fn(), $config);
     }
 
     public function promise()

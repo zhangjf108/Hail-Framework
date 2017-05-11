@@ -22,16 +22,23 @@ class HandlerStack
     /**
      * @param callable $handler Underlying HTTP handler.
      */
-    public function __construct()
+    public function __construct(callable $handler = null)
     {
-        $this->handler = Helpers::chooseHandler();
+        $this->handler = $handler;
+    }
 
-        $this->stack = [
+    public static function default()
+    {
+        $handler = new static();
+
+        $handler->stack = [
             [Middleware::httpErrors(), 'http_errors'],
             [Middleware::redirect(), 'allow_redirects'],
             [Middleware::cookies(), 'cookies'],
             [Middleware::prepareBody(), 'prepare_body'],
         ];
+
+        return $handler;
     }
 
     /**
@@ -120,7 +127,7 @@ class HandlerStack
     public function resolve()
     {
         if (!$this->cached) {
-            $prev = $this->handler;
+            $prev = $this->handler ?? Helpers::chooseHandler();
 
             foreach (array_reverse($this->stack) as $fn) {
                 $prev = $fn[0]($prev);
