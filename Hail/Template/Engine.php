@@ -22,8 +22,7 @@ class Engine
 
     protected $resolver;
     protected $processors = [];
-
-    protected $deleteElements = [];
+    protected $template;
 
     protected $baseDirectory;
     protected $cacheDirectory;
@@ -40,6 +39,8 @@ class Engine
 
         $this->baseDirectory = rtrim($config['directory'], '/') . '/';
         $this->cacheDirectory = rtrim($config['cache'], '/') . '/';
+
+        $this->template = new Template();
     }
 
     /**
@@ -98,18 +99,21 @@ class Engine
 
         $content = $dom->saveHTML();
 
-        $replacedContent = preg_replace_callback('/\&lt\;\?php.+\?\&gt\;/', function ($match) {
-            return urldecode(htmlspecialchars_decode($match[0]));
-        }, $content);
+        $replacedContent = preg_replace_callback('/\&lt\;\?php.+\?\&gt\;/', ['static', 'decodePhpCode'], $content);
 
         file_put_contents($cache, $replacedContent);
 
         return $cache;
     }
 
+    protected static function decodePhpCode($match)
+    {
+        return urldecode(htmlspecialchars_decode($match[0]));
+    }
+
     protected function getCacheFile($name)
     {
-        $file = $this->cacheDirectory . $name;
+        $file = $this->cacheDirectory . $name . '.php';
         if (file_exists($file)) {
             return $file;
         }
@@ -307,8 +311,6 @@ class Engine
      *
      * @param string $name
      * @param array  $params
-     *
-     * @return string
      */
     public function render(string $name, array $params = [])
     {
@@ -319,18 +321,18 @@ class Engine
 
         $file = $this->compile($name);
 
-        return $this->load($file, $params);
+        $this->template->render($file, $params);
     }
 
-    protected function load(string $file, array $params)
-    {
-        extract($params);
 
+    public function capture($file, array $params)
+    {
         ob_start();
-        include($file);
+        $this->render($file, $params);
         $content = ob_get_contents();
         ob_end_clean();
 
         return $content;
     }
+
 }

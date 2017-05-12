@@ -91,26 +91,6 @@ abstract class AbstractAttribute
         }
     }
 
-    /**
-     * Extract attributes expressions. for tal:attributes, tal:define
-     *
-     * @param $str
-     *
-     * @return array
-     */
-    protected function splitExpression($str)
-    {
-        $value = trim($str);
-        $pos = strpos($value, ' ');
-        $var1 = substr($value, 0, $pos);
-        $var2 = substr($value, $pos);
-
-        return [
-            $var1,
-            $var2,
-        ];
-    }
-
     public function addStyle(\DOMElement $element, string $expression)
     {
         $expression = trim($expression);

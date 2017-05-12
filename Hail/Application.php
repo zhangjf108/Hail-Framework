@@ -281,9 +281,15 @@ class Application
 
     public function render(ResponseInterface $response, string $name, array $params = []): ResponseInterface
     {
-        /** @var TemplateInterface $template */
+        /**
+         * @var Template\Engine $template
+         */
         $template = $this->get('template');
 
-        return $template->renderToResponse($response, $name, $params);
+        $response->getBody()->write(
+            $template->capture($name, $params)
+        );
+
+        return $response;
     }
 }

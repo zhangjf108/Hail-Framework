@@ -145,7 +145,7 @@ class ArrayDot implements \ArrayAccess, \Countable, \IteratorAggregate
 	public function replace(array $array): array
 	{
 		$this->items = $array;
-		$this->cache = $array === [] ? [] : self::dot($array);
+		$this->cache = [];
 
 		return $array;
 	}
