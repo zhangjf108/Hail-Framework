@@ -1,4 +1,5 @@
 <?php
+
 namespace Hail\Http\Client;
 
 use Hail\Promise\Factory;
@@ -22,19 +23,23 @@ class Pool implements PromisorInterface
     /** @var EachPromise */
     private $each;
 
+    private $client;
+    private $requests;
+    private $options;
+
     /**
      * @param ClientInterface $client   Client used to send the requests.
-     * @param array|\Iterator $requests Requests or functions that return
+     * @param iterable        $requests Requests or functions that return
      *                                  requests to send concurrently.
      * @param array           $config   Associative array of options
-     *     - concurrency: (int) Maximum number of requests to send concurrently
-     *     - options: Array of request options to apply to each request.
-     *     - fulfilled: (callable) Function to invoke when a request completes.
-     *     - rejected: (callable) Function to invoke when a request is rejected.
+     *                                  - concurrency: (int) Maximum number of requests to send concurrently
+     *                                  - options: Array of request options to apply to each request.
+     *                                  - fulfilled: (callable) Function to invoke when a request completes.
+     *                                  - rejected: (callable) Function to invoke when a request is rejected.
      */
     public function __construct(
         ClientInterface $client,
-        $requests,
+        iterable $requests,
         array $config = []
     ) {
         // Backwards compatibility.
@@ -44,32 +49,37 @@ class Pool implements PromisorInterface
             $config['concurrency'] = 25;
         }
 
+        $this->client = $client;
+        $this->requests = $requests;
+        $this->options = [];
+
         if (isset($config['options'])) {
-            $opts = $config['options'];
+            $this->options = $config['options'];
             unset($config['options']);
-        } else {
-            $opts = [];
         }
 
-        $iterable = Factory::iterator($requests);
-        $fn = function () use ($iterable, $client, $opts) {
-            foreach ($iterable as $key => $rfn) {
-                if ($rfn instanceof RequestInterface) {
-                    yield $key => $client->sendAsync($rfn, $opts);
-                } elseif (is_callable($rfn)) {
-                    yield $key => $rfn($opts);
-                } else {
-                    throw new \InvalidArgumentException('Each value yielded by '
-                        . 'the iterator must be a Psr\Http\Message\RequestInterface '
-                        . 'or a callable that returns a promise that fulfills '
-                        . 'with a Psr\Message\Http\ResponseInterface object.');
-                }
-            }
-        };
-
-        $this->each = new EachPromise($fn(), $config);
+        $this->each = new EachPromise([$this, 'process'], $config);
     }
 
+    public function process()
+    {
+        foreach ($this->requests as $key => $rfn) {
+            if ($rfn instanceof RequestInterface) {
+                yield $key => $this->client->sendAsync($rfn, $this->options);
+            } elseif (is_callable($rfn)) {
+                yield $key => $rfn($this->options);
+            } else {
+                throw new \InvalidArgumentException('Each value yielded by '
+                    . 'the iterator must be a Psr\Http\Message\RequestInterface '
+                    . 'or a callable that returns a promise that fulfills '
+                    . 'with a Psr\Message\Http\ResponseInterface object.');
+            }
+        }
+    }
+
+    /**
+     * @return \Hail\Promise\PromiseInterface
+     */
     public function promise()
     {
         return $this->each->promise();
@@ -84,7 +94,7 @@ class Pool implements PromisorInterface
      * indeterminate number of requests concurrently.
      *
      * @param ClientInterface $client   Client used to send the requests
-     * @param array|\Iterator $requests Requests to send concurrently.
+     * @param iterable        $requests Requests to send concurrently.
      * @param array           $options  Passes through the options available in
      *                                  {@see Hail\Http\Client\Pool::__construct}
      *
@@ -94,7 +104,7 @@ class Pool implements PromisorInterface
      */
     public static function batch(
         ClientInterface $client,
-        $requests,
+        iterable $requests,
         array $options = []
     ) {
         $res = [];
