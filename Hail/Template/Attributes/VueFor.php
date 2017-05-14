@@ -4,7 +4,7 @@ namespace Hail\Template\Attributes;
 
 class VueFor extends AbstractAttribute
 {
-    public $name = 'v-for';
+    const name = 'v-for';
 
     public function process(\DOMElement $element, $expression)
     {

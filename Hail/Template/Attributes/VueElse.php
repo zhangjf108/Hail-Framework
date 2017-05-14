@@ -4,7 +4,7 @@ namespace Hail\Template\Attributes;
 
 class VueElse extends AbstractAttribute
 {
-    public $name = 'v-else';
+    const name = 'v-else';
 
     public function process(\DOMElement $element, $expression)
     {

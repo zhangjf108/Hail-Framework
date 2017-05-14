@@ -1,14 +1,7 @@
 <?php
-namespace Hail\Template\Resolvers;
+namespace Hail\Template;
 
-/**
- * Default resolver treat the expression as php code, so it just returns it's trimed expressions. 
- * 
- * User: softwarezhu
- * Date: 2017/3/20
- * Time: 下午11:29
- */
-class DefaultResolver implements SyntaxResolver
+class VueResolver
 {
     /**
      * This resolver treat the expression as php code, so it just returns it's trimed expressions.

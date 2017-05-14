@@ -4,7 +4,7 @@ namespace Hail\Template\Attributes;
 
 class VueElseIf extends AbstractAttribute
 {
-    public $name = 'v-else-if';
+    const name = 'v-else-if';
 
     public function process(\DOMElement $element, $expression)
     {

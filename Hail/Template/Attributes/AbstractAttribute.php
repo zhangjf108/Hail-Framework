@@ -2,20 +2,35 @@
 
 namespace Hail\Template\Attributes;
 
-use Hail\Template\Resolvers\SyntaxResolver;
+use Hail\Template\VueResolver;
 
+/**
+ * Class AbstractAttribute
+ * @package Hail\Template\Attributes
+ *
+ * @property-read string $name
+ */
 abstract class AbstractAttribute
 {
-    public $name;
+    const name = '';
 
     /**
-     * @var SyntaxResolver
+     * @var VueResolver
      */
     public $resolver;
 
-    public function __construct(SyntaxResolver $resolver)
+    public function __construct()
     {
-        $this->resolver = $resolver;
+        $this->resolver = new VueResolver();
+    }
+
+    public function __get($name)
+    {
+        if ($name === 'name') {
+            return $this->name = static::name;
+        }
+
+        throw new \InvalidArgumentException('Property not defined: ' . $name);
     }
 
     abstract public function process(\DOMElement $element, $expression);

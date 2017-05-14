@@ -1,16 +1,14 @@
 <?php
 namespace Hail\Template\Attributes;
 
-class VueContent extends AbstractAttribute
+class VueText extends AbstractAttribute
 {
-    public $name = 'v-content';
+    const name = 'v-text';
 
     public function process(\DOMElement $element, $expression)
     {
         $expression = trim($expression);
 
         $this->text($element, 'echo $' . $expression . ';');
-        
-        $element->removeAttribute($this->name);
     }
 }

@@ -4,7 +4,7 @@ namespace Hail\Template\Attributes;
 
 class VueReplace extends AbstractAttribute
 {
-    public $name = 'v-replace';
+    const name = 'v-replace';
 
     public function process(\DOMElement $element, $expression)
     {

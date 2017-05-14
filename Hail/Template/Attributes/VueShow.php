@@ -4,7 +4,7 @@ namespace Hail\Template\Attributes;
 
 class VueShow extends AbstractAttribute
 {
-    public $name = 'v-show';
+    const name = 'v-show';
 
     public function process(\DOMElement $element, $expression)
     {

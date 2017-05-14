@@ -2,8 +2,7 @@
 
 namespace Hail\Template;
 
-use Hail\Template\Resolvers\DefaultResolver;
-use Hail\Template\Resolvers\SyntaxResolver;
+use Hail\Template\Attributes\AbstractAttribute;
 
 class Engine
 {
@@ -13,14 +12,16 @@ class Engine
         Attributes\VueIf::class,
         Attributes\VueElseIf::class,
         Attributes\VueElse::class,
+        Attributes\VueText::class,
         Attributes\VueHtml::class,
         Attributes\VueBind::class,
-        Attributes\VueContent::class,
         Attributes\VueDefine::class,
         Attributes\VueReplace::class,
     ];
 
-    protected $resolver;
+    /**
+     * @var AbstractAttribute[]
+     */
     protected $processors = [];
     protected $template;
 
@@ -54,16 +55,6 @@ class Engine
     }
 
     /**
-     * Set resolver.
-     *
-     * @param SyntaxResolver $resolver
-     */
-    public function setResolver(SyntaxResolver $resolver)
-    {
-        $this->resolver = $resolver;
-    }
-
-    /**
      * Compile the html, and return the compiled file.
      *
      * @return string the compiled file.
@@ -83,14 +74,9 @@ class Engine
 
         $dom->loadHTMLFile($template);
 
-        if ($this->resolver === null) {
-            $this->resolver = new DefaultResolver();
-        }
-
         if ($this->processors === []) {
             foreach ($this->defaultProcessors as $processorClass) {
-                $processor = new $processorClass($this->resolver);
-                $this->processors[$processor->name] = $processor;
+                $this->processors[$processorClass::name()] = new $processorClass();
             }
         }
 
@@ -113,7 +99,7 @@ class Engine
 
     protected function getCacheFile($name)
     {
-        $file = $this->cacheDirectory . $name . '.php';
+        $file = $this->cacheDirectory . $name;
         if (file_exists($file)) {
             return $file;
         }
@@ -155,19 +141,6 @@ class Engine
                 $vueCopy = $element->hasAttribute('v-once');
                 $template = $element->tagName === 'template';
 
-                $vueBind = [];
-                foreach ($element->attributes as $attribute) {
-                    $attr = $attribute->nodeName;
-                    if (
-                        strpos($attr, 'v-bind:') === 0 ||
-                        strpos($attr, ':') === 0
-                    ) {
-                        $attr = explode(':', $attr)[1];
-                        $vueBind[] = $attr . '=' . $attribute->nodeValue;
-                    }
-                }
-
-
                 foreach ($this->processors as $attr => $processor) {
                     if (!$element->hasAttribute($attr)) {
                         continue;
@@ -200,7 +173,7 @@ class Engine
                     }
 
                     if ($attr === 'v-bind') {
-                        $processor->process($element, $vueBind);
+                        $processor->process($element, null);
                     } elseif ($processor->process($element, $element->getAttribute($attr))) {
                         $this->remove($element);
 
@@ -315,8 +288,8 @@ class Engine
     public function render(string $name, array $params = [])
     {
         $name = ltrim($name, '/\\');
-        if (strrchr($name, '.') !== '.vue') {
-            $name .= '.vue';
+        if (strrchr($name, '.') !== '.php') {
+            $name .= '.php';
         }
 
         $file = $this->compile($name);

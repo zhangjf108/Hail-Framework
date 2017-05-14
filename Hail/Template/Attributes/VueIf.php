@@ -4,7 +4,7 @@ namespace Hail\Template\Attributes;
 
 class VueIf extends AbstractAttribute
 {
-    public $name = 'v-if';
+    const name = 'v-if';
 
     public function process(\DOMElement $element, $expression)
     {
