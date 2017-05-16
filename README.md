@@ -47,7 +47,7 @@
 
 ### Config
 - 可以使用 Yaml 或者 PHP 进行配置
-- 优先使用 [yaml extension](http://bd808.com/pecl-file_formats-yaml/)
+- 优先使用 [yaml extension](http://pecl.php.net/package/yaml)
 - 从 Yaml 生成 PHP 配置缓存，避免重复解析 Yaml 结构
 - 使用 OptimizeTrait 减少文件读取带来的性能损失
 
@@ -69,7 +69,7 @@
 
 ### I18N
 - 使用 gettext 处理多语言
-- 优先使用 gettext extension
+- 优先使用 [gettext extension](http://php.net/manual/gettext.installation.php)
 
 ### Database
 - 通过 PDO 支持 MySQL、PostgreSQL、Sybase、Oracle、SQL Server、Sqlite
@@ -79,7 +79,7 @@
 
 ### Redis
 - 封装了的 Redis Client
-- 优先使用 [phpredis extension](https://github.com/phpredis/phpredis/)
+- 优先使用 [phpredis extension](http://pecl.php.net/package/redis/)
 - 试验性的提供 [php-cp extension](https://github.com/swoole/php-cp) 支持
 - 支持 Redis Cluster ***[todo]***
 - 支持 Redis Sentinel ***[todo]*** 
