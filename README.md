@@ -81,12 +81,10 @@
 - 封装了的 Redis Client
 - 优先使用 [phpredis extension](http://pecl.php.net/package/redis/)
 - 试验性的提供 [php-cp extension](https://github.com/swoole/php-cp) 支持
-- 支持 Redis Cluster ***[todo]***
-- 支持 Redis Sentinel ***[todo]*** 
+- 支持 Redis Cluster ***[todo]***{: style="color: red"}
+- 支持 Redis Sentinel ***[todo]***{: style="color: red"} 
 
-### Template *[todo]*
+### Template *[todo]*{: style="color: red"}
 - 直接使用原生 PHP 作为模板语言
 - 支持编译简单的 VUE.js 模板语法为原生模板
 - 使用 VUE.js 作为默认的 JS 动态处理库
-
- 
