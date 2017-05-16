@@ -42,12 +42,12 @@
 
 ## 框架功能
 
-### OptimizeTrait
-自动检查和使用 PHP 缓存 extension： ['yac', 'pcache', 'xcache', 'wincache', 'apcu']，缓存配置的最终结果，最大限度的减少性能损失
+### Optimize & OptimizeTrait
+自动选择 PHP 缓存 extension： ['yac', 'pcache', 'xcache', 'wincache', 'apcu']，类内缓存，最大限度的减少性能损失
 
 ### Config
 - 可以使用 Yaml 或者 PHP 进行配置
-- Yaml 优先使用 extension
+- 优先使用 [yaml extension](http://bd808.com/pecl-file_formats-yaml/)
 - 从 Yaml 生成 PHP 配置缓存，避免重复解析 Yaml 结构
 - 使用 OptimizeTrait 减少文件读取带来的性能损失
 
@@ -58,34 +58,35 @@
 
 ### Container & Dependency Injection
 - 基于配置预生成静态 Container，性能几乎等同于手写代码
-- Container 可动态配置、添加、替换已有的 Component
-- 基于 Reflection 进行 Dependency Injection，不支持 auto-wiring，所有依赖必须是基于 Container 内已有的 Component
+- 可动态配置、添加、替换已有的 Component
+- 基于 Reflection 进行依赖注入，不支持 auto-wiring，所有依赖必须是基于已配置的 Component
 
 ### Router
-- 基于树形结构，查询一个节点的时间复杂度为 O(log n)，性能平均，没有所谓的最坏情况
-- 支持参数和单节点的正则，可以为 path 指定处理的 Clouser
-- 利用 ['app', 'controller', 'action'] 参数调用框架 Controller 
-- 使用 OptimizeTrait 缓存路由树结构，避免每次访问重新构造配置的结构
+- 基于树形结构，查询一个节点的时间复杂度为 O(log n)，速度均匀，没有所谓的最坏情况
+- 支持参数和单节点的正则匹配
+- 利用 ['app', 'controller', 'action'] 参数调用框架 Controller，也可以使用 Clouser 
+- 使用 OptimizeTrait 缓存路由树结构，避免每次访问重新构造路由表
 
 ### I18N
-- 使用  gettext 进行多语言支持
-- 优先使用 gettext extension，同时提供 php native 实现
+- 使用 gettext 处理多语言
+- 优先使用 gettext extension
 
 ### Database
 - 通过 PDO 支持 MySQL、PostgreSQL、Sybase、Oracle、SQL Server、Sqlite
-- 基于数组生成 SQL 语句，自动 quote
-- 试验性的支持 php-cp pdoProxy 连接池
-- 试验性的提供 ORM 支持
+- 基于数组生成 SQL 语句，自动 escape
+- 试验性的提供 [php-cp extension](https://github.com/swoole/php-cp) 支持
+- 试验性的提供简单 ORM 支持
 
 ### Redis
 - 封装了的 Redis Client
-- 优先使用 phpredis extension，同时提供 php native 的实现
-- 试验性的支持 php-cp redisProxy 连接池
-- [todo] 支持 Redis Cluster
-- [todo] 支持 Redis Sentinel 
+- 优先使用 [phpredis extension](https://github.com/phpredis/phpredis/)
+- 试验性的提供 [php-cp extension](https://github.com/swoole/php-cp) 支持
+- 支持 Redis Cluster [^todo]
+- 支持 Redis Sentinel [^todo] 
 
-### Template [todo]
+### Template [^todo]
 - 直接使用原生 PHP 作为模板语言
 - 支持编译简单的 VUE.js 模板语法为原生模板
 - 使用 VUE.js 作为默认的 JS 动态处理库
+
  
