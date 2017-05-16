@@ -1,10 +1,13 @@
 <?php
 
-namespace Hail\Template\Attributes;
+namespace Hail\Template\Processor;
 
-class VueShow extends AbstractAttribute
+class VueShow extends AbstractProcessor
 {
-    const name = 'v-show';
+    public function attribute(): string
+    {
+        return 'v-show';
+    }
 
     public function process(\DOMElement $element, $expression)
     {

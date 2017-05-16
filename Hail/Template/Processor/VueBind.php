@@ -1,10 +1,13 @@
 <?php
 
-namespace Hail\Template\Attributes;
+namespace Hail\Template\Processor;
 
-class VueBind extends AbstractAttribute
+class VueBind extends AbstractProcessor
 {
-    const name = 'v-bind';
+    public function attribute(): string
+    {
+        return 'v-bind';
+    }
 
     public function process(\DOMElement $element, $expression)
     {

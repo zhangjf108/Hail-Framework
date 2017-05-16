@@ -1,6 +1,6 @@
 <?php
 
-namespace Hail\Template\Plates\Template;
+namespace Hail\Template;
 
 use LogicException;
 
@@ -11,25 +11,29 @@ class Data
 {
     /**
      * Variables shared by all templates.
+     *
      * @var array
      */
-    protected $sharedVariables = array();
+    protected $sharedVariables = [];
 
     /**
      * Specific template variables.
+     *
      * @var array
      */
-    protected $templateVariables = array();
+    protected $templateVariables = [];
 
     /**
      * Add template data.
-     * @param  array             $data;
-     * @param  null|string|array $templates;
+     *
+     * @param  array             $data      ;
+     * @param  null|string|array $templates ;
+     *
      * @return Data
      */
     public function add(array $data, $templates = null)
     {
-        if (is_null($templates)) {
+        if (null === $templates) {
             return $this->shareWithAll($data);
         }
 
@@ -38,7 +42,7 @@ class Data
         }
 
         if (is_string($templates)) {
-            return $this->shareWithSome($data, array($templates));
+            return $this->shareWithSome($data, [$templates]);
         }
 
         throw new LogicException(
@@ -48,7 +52,9 @@ class Data
 
     /**
      * Add data shared with all templates.
-     * @param  array $data;
+     *
+     * @param  array $data ;
+     *
      * @return Data
      */
     public function shareWithAll($data)
@@ -60,8 +66,10 @@ class Data
 
     /**
      * Add data shared with some templates.
-     * @param  array $data;
-     * @param  array $templates;
+     *
+     * @param  array $data      ;
+     * @param  array $templates ;
+     *
      * @return Data
      */
     public function shareWithSome($data, array $templates)
@@ -79,7 +87,9 @@ class Data
 
     /**
      * Get template data.
-     * @param  null|string $template;
+     *
+     * @param  null|string $template ;
+     *
      * @return array
      */
     public function get($template = null)

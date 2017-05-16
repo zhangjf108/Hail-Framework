@@ -1,9 +1,9 @@
 <?php
 
-namespace Hail\Template\Plates\Extension;
+namespace Hail\Template\Extension;
 
-use Hail\Template\Plates\Engine;
-use Hail\Template\Plates\Template\Template;
+use Hail\Template\Engine;
+use Hail\Template\old;
 use LogicException;
 
 /**
@@ -13,24 +13,28 @@ class Asset implements ExtensionInterface
 {
     /**
      * Instance of the current template.
-     * @var Template
+     *
+     * @var old
      */
     public $template;
 
     /**
      * Path to asset directory.
+     *
      * @var string
      */
     public $path;
 
     /**
      * Enables the filename method.
+     *
      * @var boolean
      */
     public $filenameMethod;
 
     /**
      * Create new Asset instance.
+     *
      * @param string  $path
      * @param boolean $filenameMethod
      */
@@ -42,22 +46,26 @@ class Asset implements ExtensionInterface
 
     /**
      * Register extension function.
+     *
      * @param Engine $engine
+     *
      * @return null
      */
     public function register(Engine $engine)
     {
-        $engine->registerFunction('asset', array($this, 'cachedAssetUrl'));
+        $engine->registerFunction('asset', [$this, 'cachedAssetUrl']);
     }
 
     /**
      * Create "cache busted" asset URL.
+     *
      * @param  string $url
+     *
      * @return string
      */
     public function cachedAssetUrl($url)
     {
-        $filePath = $this->path . '/' .  ltrim($url, '/');
+        $filePath = $this->path . '/' . ltrim($url, '/');
 
         if (!file_exists($filePath)) {
             throw new LogicException(

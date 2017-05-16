@@ -1,9 +1,9 @@
 <?php
 
-namespace Hail\Template\Plates\Extension;
+namespace Hail\Template\Extension;
 
-use Hail\Template\Plates\Engine;
-use Hail\Template\Plates\Template\Template;
+use Hail\Template\Engine;
+use Hail\Template\old;
 use LogicException;
 
 /**
@@ -13,7 +13,8 @@ class URI implements ExtensionInterface
 {
     /**
      * Instance of the current template.
-     * @var Template
+     *
+     * @var old
      */
     public $template;
 

@@ -1,10 +1,13 @@
 <?php
 
-namespace Hail\Template\Attributes;
+namespace Hail\Template\Processor;
 
-class VueElseIf extends AbstractAttribute
+class VueElseIf extends AbstractProcessor
 {
-    const name = 'v-else-if';
+    public function attribute(): string
+    {
+        return 'v-else-if';
+    }
 
     public function process(\DOMElement $element, $expression)
     {

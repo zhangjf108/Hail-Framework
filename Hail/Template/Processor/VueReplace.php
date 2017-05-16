@@ -1,10 +1,13 @@
 <?php
 
-namespace Hail\Template\Attributes;
+namespace Hail\Template\Processor;
 
-class VueReplace extends AbstractAttribute
+class VueReplace extends AbstractProcessor
 {
-    const name = 'v-replace';
+    public function attribute(): string
+    {
+        return 'v-replace';
+    }
 
     public function process(\DOMElement $element, $expression)
     {

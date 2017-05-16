@@ -1,6 +1,6 @@
 <?php
 
-namespace Hail\Template\Attributes;
+namespace Hail\Template\Processor;
 
 use Hail\Template\VueResolver;
 
@@ -10,10 +10,8 @@ use Hail\Template\VueResolver;
  *
  * @property-read string $name
  */
-abstract class AbstractAttribute
+abstract class AbstractProcessor implements ProcessorInterface
 {
-    const name = '';
-
     /**
      * @var VueResolver
      */
@@ -23,17 +21,6 @@ abstract class AbstractAttribute
     {
         $this->resolver = new VueResolver();
     }
-
-    public function __get($name)
-    {
-        if ($name === 'name') {
-            return $this->name = static::name;
-        }
-
-        throw new \InvalidArgumentException('Property not defined: ' . $name);
-    }
-
-    abstract public function process(\DOMElement $element, $expression);
 
     public function resolveExpression($expression)
     {

@@ -1,9 +1,12 @@
 <?php
-namespace Hail\Template\Attributes;
+namespace Hail\Template\Processor;
 
-class VueText extends AbstractAttribute
+class VueText extends AbstractProcessor
 {
-    const name = 'v-text';
+    public function attribute(): string
+    {
+        return 'v-text';
+    }
 
     public function process(\DOMElement $element, $expression)
     {

@@ -2,35 +2,54 @@
 
 namespace Hail\Template;
 
-use Hail\Template\Attributes\AbstractAttribute;
+use Hail\Template\Extension\ExtensionInterface;
+use Hail\Template\Processor\ProcessorInterface;
 
 class Engine
 {
     public $defaultProcessors = [
-        Attributes\VueFor::class,
-        Attributes\VueShow::class,
-        Attributes\VueIf::class,
-        Attributes\VueElseIf::class,
-        Attributes\VueElse::class,
-        Attributes\VueText::class,
-        Attributes\VueHtml::class,
-        Attributes\VueBind::class,
-        Attributes\VueDefine::class,
-        Attributes\VueReplace::class,
+        Processor\VueFor::class,
+        Processor\VueShow::class,
+        Processor\VueIf::class,
+        Processor\VueElseIf::class,
+        Processor\VueElse::class,
+        Processor\VueText::class,
+        Processor\VueHtml::class,
+        Processor\VueBind::class,
+        Processor\VueDefine::class,
+        Processor\VueReplace::class,
     ];
 
     /**
-     * @var AbstractAttribute[]
+     * @var ProcessorInterface[]
      */
     protected $processors = [];
-    protected $template;
 
-    protected $baseDirectory;
+    /**
+     * @var string
+     */
+    protected $directory;
+
+    /**
+     * @var string
+     */
+    protected $fallback;
+
+    /**
+     * @var string
+     */
     protected $cacheDirectory;
 
-    public function __construct()
+    /**
+     * Collection of template functions.
+     *
+     * @var callable[]
+     */
+    protected $functions;
+
+    public function __construct(array $config = [])
     {
-        if (!isset($config['directory'])) {
+        if (!isset($config['directory'], $config['fallback'])) {
             throw new \LogicException('Path to template directory is not set.');
         }
 
@@ -38,20 +57,218 @@ class Engine
             throw new \LogicException('Path to temporary directory is not set.');
         }
 
-        $this->baseDirectory = rtrim($config['directory'], '/') . '/';
-        $this->cacheDirectory = rtrim($config['cache'], '/') . '/';
+        $this->directory = $this->setDirectory($config['directory'] ?? null);
+        $this->fallback = $this->setFallback($config['fallback'] ?? null);
+        $this->cacheDirectory = $this->setCacheDirectory($config['cache']);
 
-        $this->template = new Template();
+        $this->data = new Data();
     }
 
     /**
-     * Set Processors.
-     *
-     * @param array $processors
+     * Add preassigned template data.
+     * @param  array             $data;
+     * @param  null|string|array $templates;
+     * @return Engine
      */
-    public function setProcessors($processors = [])
+    public function addData(array $data, $templates = null)
     {
-        $this->processors = $processors;
+        $this->data->add($data, $templates);
+        return $this;
+    }
+
+    /**
+     * Get all preassigned template data.
+     * @param  null|string $template;
+     * @return array
+     */
+    public function getData($template = null)
+    {
+        return $this->data->get($template);
+    }
+
+    /**
+     * Set path to templates directory.
+     *
+     * @param  string $directory
+     *
+     * @return self
+     */
+    public function setDirectory($directory)
+    {
+        $this->directory = $this->normalizeDirectory($directory);
+
+        return $this;
+    }
+
+    /**
+     * Set path to fallback directory.
+     *
+     * @param  string $fallback
+     *
+     * @return self
+     */
+    public function setFallback($fallback)
+    {
+        $this->fallback = $this->normalizeDirectory($fallback);
+
+        return $this;
+    }
+
+    /**
+     * Set path to templates cache directory.
+     *
+     * @param  string $directory
+     *
+     * @return self
+     */
+    public function setCacheDirectory($directory)
+    {
+        $this->cacheDirectory = $this->normalizeDirectory($directory);
+
+        return $this;
+    }
+
+    /**
+     * Register a new template function.
+     *
+     * @param string   $name
+     * @param callback $callback
+     *
+     * @return Engine
+     */
+    public function registerFunction(string $name, callable $callback)
+    {
+        if (preg_match('/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/', $name) !== 1) {
+            throw new \LogicException('Not a valid function name.');
+        }
+
+        $this->functions[$name] = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Remove a template function.
+     *
+     * @param  string $name
+     *
+     * @return Engine
+     */
+    public function dropFunction($name)
+    {
+        unset($this->functions[$name]);
+
+        return $this;
+    }
+
+    /**
+     * Get a template function.
+     *
+     * @param  string $name
+     *
+     * @return callable
+     */
+    public function getFunction($name)
+    {
+        if (!isset($this->functions[$name])) {
+            throw new \LogicException('The template function "' . $name . '" was not found.');
+        }
+
+        return $this->functions[$name];
+    }
+
+    /**
+     * Call the function.
+     *
+     * @param string $name
+     * @param old    $template
+     * @param array  $arguments
+     *
+     * @return mixed
+     */
+    public function callFunction($name, old $template = null, $arguments = [])
+    {
+        $callable = $this->getFunction($name);
+
+        if (is_array($callable) and
+            isset($callable[0]) and
+            $callable[0] instanceof ExtensionInterface
+        ) {
+            $callable[0]->template = $template;
+        }
+
+        return $callable(...$arguments);
+    }
+
+    /**
+     * Check if a template function exists.
+     *
+     * @param  string $name
+     *
+     * @return boolean
+     */
+    public function doesFunctionExist($name)
+    {
+        return isset($this->functions[$name]);
+    }
+
+    /**
+     * Load an extension.
+     *
+     * @param  ExtensionInterface $extension
+     *
+     * @return Engine
+     */
+    public function loadExtension(ExtensionInterface $extension)
+    {
+        $extension->register($this);
+
+        return $this;
+    }
+
+    /**
+     * Load multiple extensions.
+     *
+     * @param  array $extensions
+     *
+     * @return Engine
+     */
+    public function loadExtensions(array $extensions = [])
+    {
+        foreach ($extensions as $extension) {
+            $this->loadExtension($extension);
+        }
+
+        return $this;
+    }
+
+    /**
+     * add processor class.
+     *
+     * @param ProcessorInterface $processor
+     *
+     * @return self
+     */
+    public function addProcessor(ProcessorInterface $processor)
+    {
+        if ($this->processors === []) {
+            $this->defaultProcessors[] = $processor;
+        } else {
+            $this->processors[$processor->attribute()] = $processor;
+        }
+
+        return $this;
+    }
+
+    protected function initProcessors()
+    {
+        foreach ($this->defaultProcessors as $processor) {
+            if (!$processor instanceof ProcessorInterface) {
+                $processor = new $processor();
+            }
+
+            $this->processors[$processor->attribute()] = $processor;
+        }
     }
 
     /**
@@ -62,8 +279,10 @@ class Engine
      */
     public function compile($name)
     {
-        $template = $this->getTemplateFile($name);
-        $cache = $this->getCacheFile($name);
+        [
+            'template' => $template,
+            'cache' => $cache,
+        ] = $this->getTemplateFile($name);
 
         if (filemtime($template) < filemtime($cache)) {
             return $cache;
@@ -75,9 +294,7 @@ class Engine
         $dom->loadHTMLFile($template);
 
         if ($this->processors === []) {
-            foreach ($this->defaultProcessors as $processorClass) {
-                $this->processors[$processorClass::name()] = new $processorClass();
-            }
+            $this->initProcessors();
         }
 
         $this->parseElement($dom);
@@ -97,10 +314,29 @@ class Engine
         return urldecode(htmlspecialchars_decode($match[0]));
     }
 
-    protected function getCacheFile($name)
+    protected function getTemplateFile(string $name)
     {
-        $file = $this->cacheDirectory . $name;
-        if (file_exists($file)) {
+        foreach ([$this->directory, $this->fallback] as $dir) {
+            if (empty($dir)) {
+                continue;
+            }
+
+            $file = $this->getFile($dir . $name);
+            if ($file !== null) {
+                return [
+                    'template' => $file,
+                    'cache' => $this->convertToCache($file, $dir),
+                ];
+            }
+        }
+
+        throw new \LogicException('Template file not found:' . $name);
+    }
+
+    protected function convertToCache(string $template, string $dir)
+    {
+        $file = str_replace($dir, $this->cacheDirectory, $template);
+        if (is_file($file)) {
             return $file;
         }
 
@@ -115,14 +351,19 @@ class Engine
         return $file;
     }
 
-    protected function getTemplateFile($name)
+    protected function getFile($file)
     {
-        $file = $this->baseDirectory . $name;
-        if (!file_exists($file)) {
-            throw new \LogicException('Template file not found:' . $name);
+        if (is_dir($file)) {
+            $file .= '/index.php';
+        } elseif (strrchr($file, '.') !== '.php') {
+            $file .= '.php';
         }
 
-        return $file;
+        if (is_file($file)) {
+            return $file;
+        }
+
+        return null;
     }
 
     /**
@@ -233,12 +474,12 @@ class Engine
             if ($process) {
                 $element->removeAttribute('v-php');
 
-                foreach ($this->processors as $processor) {
-                    if (!$element->hasAttribute($processor->name)) {
+                foreach ($this->processors as $attr => $processor) {
+                    if (!$element->hasAttribute($attr)) {
                         continue;
                     }
 
-                    $element->removeAttribute($processor->name);
+                    $element->removeAttribute($attr);
                 }
 
                 if ($element->hasAttribute('v-once')) {
@@ -279,6 +520,19 @@ class Engine
         return [];
     }
 
+    protected function normalizeDirectory(?string $dir): ?string
+    {
+        if ($dir !== null) {
+            if (strpos($dir, '\\') !== false) {
+                $dir = str_replace('\\', '/', $dir);
+            }
+
+            $dir = rtrim($dir, '/') . '/';
+        }
+
+        return $dir;
+    }
+
     /**
      * Render the compiled php code by data.
      *
@@ -287,25 +541,31 @@ class Engine
      */
     public function render(string $name, array $params = [])
     {
-        $name = ltrim($name, '/\\');
-        if (strrchr($name, '.') !== '.php') {
-            $name .= '.php';
-        }
+        echo $this->capture($name, $params);
+    }
 
+
+    /**
+     * @param       $name
+     * @param array $params
+     *
+     * @return string
+     */
+    public function capture($name, array $params)
+    {
+        return $this->make($name)->render($params);
+    }
+
+    /**
+     * @param $name
+     *
+     * @return Template
+     */
+    public function make($name)
+    {
+        $name = trim($name, '/\\');
         $file = $this->compile($name);
 
-        $this->template->render($file, $params);
+        return new Template($this, $name, $file);
     }
-
-
-    public function capture($file, array $params)
-    {
-        ob_start();
-        $this->render($file, $params);
-        $content = ob_get_contents();
-        ob_end_clean();
-
-        return $content;
-    }
-
 }

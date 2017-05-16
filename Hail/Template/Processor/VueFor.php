@@ -1,10 +1,13 @@
 <?php
 
-namespace Hail\Template\Attributes;
+namespace Hail\Template\Processor;
 
-class VueFor extends AbstractAttribute
+class VueFor extends AbstractProcessor
 {
-    const name = 'v-for';
+    public function attribute(): string
+    {
+        return 'v-for';
+    }
 
     public function process(\DOMElement $element, $expression)
     {

@@ -1,8 +1,8 @@
 <?php
 
-namespace Hail\Template\Plates\Extension;
+namespace Hail\Template\Extension;
 
-use Hail\Template\Plates\Engine;
+use Hail\Template\Engine;
 
 /**
  * A common interface for extensions.
