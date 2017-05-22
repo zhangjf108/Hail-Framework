@@ -15,7 +15,7 @@ class VueShow extends AbstractProcessor
             throw  new \LogicException('v-show not support template tag');
         }
 
-        $expression = $this->resolveExpression($expression);
+        $expression = trim($expression);
 
         $style = '<?php echo (' . $expression . ') ? \'\': \'display: none\' ?>';
         $this->addStyle($element, $style);

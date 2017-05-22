@@ -2,38 +2,20 @@
 
 namespace Hail\Template\Processor;
 
-use Hail\Template\VueResolver;
 
 /**
- * Class AbstractAttribute
- * @package Hail\Template\Attributes
- *
- * @property-read string $name
+ * Class AbstractProcessor
+ * @package Hail\Template\Processor
  */
 abstract class AbstractProcessor implements ProcessorInterface
 {
-    /**
-     * @var VueResolver
-     */
-    public $resolver;
-
-    public function __construct()
-    {
-        $this->resolver = new VueResolver();
-    }
-
-    public function resolveExpression($expression)
-    {
-        return $this->resolver->resolve($expression);
-    }
-
     /**
      * insert a php code before an element.
      *
      * @param \DOMElement $element
      * @param             $phpExpression
      */
-    public function before(\DOMElement $element, $phpExpression)
+	protected function before(\DOMElement $element, $phpExpression)
     {
         $exp = new \DOMProcessingInstruction('php', $phpExpression . ' ?');
         $newLine = new \DOMText("\r\n");
@@ -47,7 +29,7 @@ abstract class AbstractProcessor implements ProcessorInterface
      * @param \DOMElement $element
      * @param             $phpExpression
      */
-    public function after(\DOMElement $element, $phpExpression)
+	protected function after(\DOMElement $element, $phpExpression)
     {
         $exp = new \DOMProcessingInstruction('php', $phpExpression . ' ?');
         $newLine = new \DOMText("\r\n");
@@ -67,7 +49,7 @@ abstract class AbstractProcessor implements ProcessorInterface
      * @param \DOMElement $element
      * @param             $phpExpression
      */
-    public function text(\DOMElement $element, $phpExpression)
+	protected function text(\DOMElement $element, $phpExpression)
     {
         while ($element->childNodes->length) {
             $element->removeChild($element->firstChild);
@@ -85,7 +67,7 @@ abstract class AbstractProcessor implements ProcessorInterface
      * @param \DOMElement $element
      * @param string $phpExpression
      */
-    public function replace(\DOMElement $element, string $phpExpression = '')
+    protected function replace(\DOMElement $element, string $phpExpression = '')
     {
         $phpExpression = trim($phpExpression);
         if ($phpExpression) {
@@ -93,7 +75,7 @@ abstract class AbstractProcessor implements ProcessorInterface
         }
     }
 
-    public function addStyle(\DOMElement $element, string $expression)
+	protected function addStyle(\DOMElement $element, string $expression)
     {
         $expression = trim($expression);
         if ($expression) {

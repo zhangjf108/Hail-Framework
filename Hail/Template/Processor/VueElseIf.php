@@ -16,7 +16,7 @@ class VueElseIf extends AbstractProcessor
             throw new \LogicException('v-else-if must after v-if');
         }
 
-        $expression = $this->resolveExpression($expression);
+        $expression = trim($expression);
 
         $startCode = 'elseif (' . $expression . ') { ';
         $endCode = '} ';

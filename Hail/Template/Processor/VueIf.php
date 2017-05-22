@@ -11,7 +11,7 @@ class VueIf extends AbstractProcessor
 
     public function process(\DOMElement $element, $expression)
     {
-        $expression = $this->resolveExpression($expression);
+        $expression = trim($expression);
 
         $startCode = 'if (' . $expression . ') { ';
         $endCode = '} ';

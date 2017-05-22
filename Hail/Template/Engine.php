@@ -16,8 +16,6 @@ class Engine
         Processor\VueText::class,
         Processor\VueHtml::class,
         Processor\VueBind::class,
-        Processor\VueDefine::class,
-        Processor\VueReplace::class,
     ];
 
     /**
