@@ -86,15 +86,16 @@ class Util
      * respective positions to the original array. If any promise in the array
      * rejects, the returned promise is rejected with the rejection reason.
      *
-     * @param mixed $promises Promises or values.
+     * @param mixed $promises  Promises or values.
+     * @param bool  $recursive - If true, resolves new promises that might have been added to the stack during its own resolution.
      *
      * @return PromiseInterface
      */
-    public static function all($promises)
+    public static function all($promises, $recursive = false)
     {
         $results = [];
 
-        return self::each(
+        $promise = self::each(
             $promises,
             static function ($value, $idx) use (&$results) {
                 $results[$idx] = $value;
@@ -107,6 +108,20 @@ class Util
 
             return $results;
         });
+
+        if (true === $recursive) {
+            $promise = $promise->then(function ($results) use ($recursive, &$promises) {
+                foreach ($promises AS $promise) {
+                    if (PromiseInterface::PENDING === $promise->getState()) {
+                        return self::all($promises, $recursive);
+                    }
+                }
+
+                return $results;
+            });
+        }
+
+        return $promise;
     }
 
     /**

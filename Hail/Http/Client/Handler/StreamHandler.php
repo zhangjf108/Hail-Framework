@@ -232,7 +232,7 @@ class StreamHandler
      */
     private function createResource(callable $callback)
     {
-        $errors = null;
+        $errors = [];
         set_error_handler(function ($_, $msg, $file, $line) use (&$errors) {
             $errors[] = [
                 'message' => $msg,
