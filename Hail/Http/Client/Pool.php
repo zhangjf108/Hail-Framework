@@ -2,7 +2,6 @@
 
 namespace Hail\Http\Client;
 
-use Hail\Promise\Factory;
 use Hail\Promise\PromisorInterface;
 use Psr\Http\Message\RequestInterface;
 use Hail\Promise\EachPromise;

@@ -19,11 +19,11 @@ class Factory
      * }
      * </code>
      *
-     * @param TaskQueueInterface $assign Optionally specify a new queue instance.
+     * @param TaskQueue $assign Optionally specify a new queue instance.
      *
-     * @return TaskQueueInterface
+     * @return TaskQueue
      */
-    public static function queue(TaskQueueInterface $assign = null)
+    public static function queue(TaskQueue $assign = null)
     {
         static $queue;
 
@@ -72,7 +72,7 @@ class Factory
             return $value;
         }
 
-        // Return a Guzzle promise that shadows the given promise.
+        // Return a Promise that shadows the given promise.
         if (method_exists($value, 'then')) {
             $wfn = method_exists($value, 'wait') ? [$value, 'wait'] : null;
             $cfn = method_exists($value, 'cancel') ? [$value, 'cancel'] : null;
@@ -82,7 +82,7 @@ class Factory
             return $promise;
         }
 
-        return new FulfilledPromise($value);
+        return (new Promise())->withState(PromiseInterface::FULFILLED, $value);
     }
 
     /**
@@ -99,7 +99,7 @@ class Factory
             return $reason;
         }
 
-        return new RejectedPromise($reason);
+        return (new Promise())->withState(PromiseInterface::REJECTED, $reason);
     }
 
     /**
@@ -132,5 +132,17 @@ class Factory
         }
 
         return new \ArrayIterator([$value]);
+    }
+
+    /**
+     * @see Coroutine
+     *
+     * @param callable $generatorFn
+     *
+     * @return PromiseInterface
+     */
+    public static function coroutine(callable $generatorFn)
+    {
+        return new Coroutine($generatorFn);
     }
 }

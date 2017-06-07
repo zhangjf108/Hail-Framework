@@ -8,7 +8,6 @@ use Hail\Http\Client\Helpers;
 use Hail\Http\Client\Message\LazyOpenStream;
 use Hail\Http\Factory as HttpFactory;
 use Hail\Promise\Factory as PromiseFactory;
-use Hail\Promise\FulfilledPromise;
 use Hail\Http\Client\TransferStats;
 use Psr\Http\Message\RequestInterface;
 
@@ -114,7 +113,7 @@ class CurlFactory implements CurlFactoryInterface
             $body->rewind();
         }
 
-        return new FulfilledPromise($easy->response);
+        return PromiseFactory::promise($easy->response);
     }
 
     private static function invokeStats(EasyHandle $easy)

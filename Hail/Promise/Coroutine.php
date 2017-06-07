@@ -18,7 +18,7 @@ use Throwable;
  *     use Hail\Promise;
  *
  *     function createPromise($value) {
- *         return new Promise\FulfilledPromise($value);
+ *         return new Promise\Factory::promise($value);
  *     }
  *
  *     $promise = Promise\Factory::coroutine(function () {

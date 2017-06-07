@@ -8,7 +8,6 @@ use Hail\Http\Client\Helpers;
 use Hail\Http\Client\Message\InflateStream;
 use Hail\Http\Client\Message\LazyOpenStream;
 use Hail\Promise\Factory as PromiseFactory;
-use Hail\Promise\FulfilledPromise;
 use Hail\Promise\PromiseInterface;
 use Hail\Http\Factory as HttpFactory;
 use Hail\Http\Client\TransferStats;
@@ -140,7 +139,7 @@ class StreamHandler
 
         $this->invokeStats($options, $request, $startTime, $response, null);
 
-        return new FulfilledPromise($response);
+        return PromiseFactory::promise($response);
     }
 
     private function createSink(StreamInterface $stream, array $options)

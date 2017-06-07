@@ -301,18 +301,6 @@ class Util
     }
 
     /**
-     * @see Coroutine
-     *
-     * @param callable $generatorFn
-     *
-     * @return PromiseInterface
-     */
-    public static function coroutine(callable $generatorFn)
-    {
-        return new Coroutine($generatorFn);
-    }
-
-    /**
      * Returns true if a promise is fulfilled.
      *
      * @param PromiseInterface $promise

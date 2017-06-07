@@ -1,4 +1,5 @@
 <?php
+
 namespace Hail\Promise;
 
 use Hail\Promise\Exception\CancellationException;
@@ -34,24 +35,42 @@ class Promise implements PromiseInterface
         callable $onRejected = null
     ) {
         if ($this->state === self::PENDING) {
-            $p = new Promise(null, [$this, 'cancel']);
+            $p = new static(null, [$this, 'cancel']);
             $this->handlers[] = [$p, $onFulfilled, $onRejected];
             $p->waitList = $this->waitList;
             $p->waitList[] = $this;
+
             return $p;
         }
 
         // Return a fulfilled promise and immediately invoke any callbacks.
         if ($this->state === self::FULFILLED) {
-            return $onFulfilled
-                ? Factory::promise($this->result)->then($onFulfilled)
-                : Factory::promise($this->result);
+            if (!$onFulfilled) {
+                return $this;
+            }
+
+            $callable = $onFulfilled;
+        } else {
+            if (!$onRejected) {
+                return $this;
+            }
+            $callable = $onRejected;
         }
 
-        // It's either cancelled or rejected, so return a rejected promise
-        // and immediately invoke any callbacks.
-        $rejection = Factory::rejection($this->result);
-        return $onRejected ? $rejection->then(null, $onRejected) : $rejection;
+        $queue = Factory::queue();
+        $result = $this->result;
+        $p = new static([$queue, 'run']);
+        $queue->add(static function () use ($p, $result, $callable) {
+            if ($p->getState() === self::PENDING) {
+                try {
+                    $p->resolve($callable($result));
+                } catch (\Throwable $e) {
+                    $p->reject($e);
+                }
+            }
+        });
+
+        return $p;
     }
 
     public function otherwise(callable $onRejected)
@@ -273,5 +292,13 @@ class Promise implements PromiseInterface
                 break;
             }
         }
+    }
+
+    public function withState($state, $result)
+    {
+        $this->state = $state;
+        $this->result = $result;
+
+        return $this;
     }
 }
