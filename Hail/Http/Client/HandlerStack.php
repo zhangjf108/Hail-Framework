@@ -32,10 +32,13 @@ class HandlerStack
         $handler = new static();
 
         $handler->stack = [
-            [Middleware::httpErrors(), 'http_errors'],
-            [Middleware::redirect(), 'allow_redirects'],
-            [Middleware::cookies(), 'cookies'],
-            [Middleware::prepareBody(), 'prepare_body'],
+            [Middleware\Map::class, 'map'],
+            [Middleware\Log::class, 'log'],
+            [Middleware\Retry::class, 'retry'],
+            [Middleware\HttpErrors::class, 'http_errors'],
+            [Middleware\Redirect::class, 'allow_redirects'],
+            [Middleware\Cookies::class, 'cookies'],
+            [Middleware\PrepareBody::class, 'prepare_body'],
         ];
 
         return $handler;
@@ -130,7 +133,12 @@ class HandlerStack
             $prev = $this->handler ?? Helpers::chooseHandler();
 
             foreach (array_reverse($this->stack) as $fn) {
-                $prev = $fn[0]($prev);
+                $fn = $fn[0];
+                if ($fn instanceof Middleware\MiddlewareInterface) {
+                    $prev = new $fn($prev);
+                } else {
+                    $prev = $fn($prev);
+                }
             }
 
             $this->cached = $prev;

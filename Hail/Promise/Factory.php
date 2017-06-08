@@ -23,7 +23,7 @@ class Factory
      *
      * @return TaskQueue
      */
-    public static function queue(TaskQueue $assign = null)
+    public static function queue(TaskQueue $assign = null): TaskQueue
     {
         static $queue;
 
@@ -44,7 +44,7 @@ class Factory
      *
      * @return PromiseInterface
      */
-    public static function task(callable $task)
+    public static function task(callable $task): PromiseInterface
     {
         $queue = self::queue();
         $promise = new Promise([$queue, 'run']);
@@ -66,7 +66,7 @@ class Factory
      *
      * @return PromiseInterface
      */
-    public static function promise($value)
+    public static function promise($value): PromiseInterface
     {
         if ($value instanceof PromiseInterface) {
             return $value;
@@ -93,7 +93,7 @@ class Factory
      *
      * @return PromiseInterface
      */
-    public static function rejection($reason)
+    public static function rejection($reason): PromiseInterface
     {
         if ($reason instanceof PromiseInterface) {
             return $reason;
@@ -121,7 +121,7 @@ class Factory
      *
      * @return \Iterator
      */
-    public static function iterator($value)
+    public static function iterator($value): \Iterator
     {
         if ($value instanceof \Iterator) {
             return $value;
@@ -141,7 +141,7 @@ class Factory
      *
      * @return PromiseInterface
      */
-    public static function coroutine(callable $generatorFn)
+    public static function coroutine(callable $generatorFn): PromiseInterface
     {
         return new Coroutine($generatorFn);
     }

@@ -21,7 +21,7 @@ class Util
      *
      * @return array
      */
-    public static function inspect(PromiseInterface $promise)
+    public static function inspect(PromiseInterface $promise): array
     {
         try {
             return [
@@ -46,7 +46,7 @@ class Util
      * @return array
      * @see inspect for the inspection state array format.
      */
-    public static function inspectAll($promises)
+    public static function inspectAll($promises): array
     {
         $results = [];
         foreach ($promises as $key => $promise) {
@@ -68,7 +68,7 @@ class Util
      * @return array
      * @throws \Throwable on error
      */
-    public static function unwrap($promises)
+    public static function unwrap($promises): array
     {
         $results = [];
         foreach ($promises as $key => $promise) {
@@ -91,7 +91,7 @@ class Util
      *
      * @return PromiseInterface
      */
-    public static function all($promises, $recursive = false)
+    public static function all($promises, $recursive = false): PromiseInterface
     {
         $results = [];
 
@@ -140,7 +140,7 @@ class Util
      *
      * @return PromiseInterface
      */
-    public static function some($count, $promises)
+    public static function some($count, $promises): PromiseInterface
     {
         $results = [];
         $rejections = [];
@@ -179,7 +179,7 @@ class Util
      *
      * @return PromiseInterface
      */
-    public static function any($promises)
+    public static function any($promises): PromiseInterface
     {
         return self::some(1, $promises)->then(static function ($values) {
             return $values[0];
@@ -197,7 +197,7 @@ class Util
      * @return PromiseInterface
      * @see inspect for the inspection state array format.
      */
-    public static function settle($promises)
+    public static function settle($promises): PromiseInterface
     {
         $results = [];
 
@@ -239,7 +239,7 @@ class Util
         $iterable,
         callable $onFulfilled = null,
         callable $onRejected = null
-    ) {
+    ): PromiseInterface {
         return (new EachPromise($iterable, [
             'fulfilled' => $onFulfilled,
             'rejected' => $onRejected,
@@ -266,7 +266,7 @@ class Util
         $concurrency,
         callable $onFulfilled = null,
         callable $onRejected = null
-    ) {
+    ): PromiseInterface {
         return (new EachPromise($iterable, [
             'fulfilled' => $onFulfilled,
             'rejected' => $onRejected,
@@ -289,7 +289,7 @@ class Util
         $iterable,
         $concurrency,
         callable $onFulfilled = null
-    ) {
+    ): PromiseInterface {
         return self::eachLimit(
             $iterable,
             $concurrency,
@@ -307,7 +307,7 @@ class Util
      *
      * @return bool
      */
-    public static function isFulfilled(PromiseInterface $promise)
+    public static function isFulfilled(PromiseInterface $promise): bool
     {
         return $promise->getState() === PromiseInterface::FULFILLED;
     }
@@ -319,7 +319,7 @@ class Util
      *
      * @return bool
      */
-    public static function isRejected(PromiseInterface $promise)
+    public static function isRejected(PromiseInterface $promise): bool
     {
         return $promise->getState() === PromiseInterface::REJECTED;
     }
@@ -331,7 +331,7 @@ class Util
      *
      * @return bool
      */
-    public static function isSettled(PromiseInterface $promise)
+    public static function isSettled(PromiseInterface $promise): bool
     {
         return $promise->getState() !== PromiseInterface::PENDING;
     }

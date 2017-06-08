@@ -15,7 +15,7 @@ class Promise implements PromiseInterface
     private $result;
     private $cancelFn;
     private $waitFn;
-    private $waitList;
+    private $waitList = [];
     private $handlers = [];
 
     /**
@@ -33,9 +33,10 @@ class Promise implements PromiseInterface
     public function then(
         callable $onFulfilled = null,
         callable $onRejected = null
-    ) {
+    ): PromiseInterface {
         if ($this->state === self::PENDING) {
-            $p = new static(null, [$this, 'cancel']);
+            $p = clone $this;
+            $p->cancelFn = [$this, 'cancel'];
             $this->handlers[] = [$p, $onFulfilled, $onRejected];
             $p->waitList = $this->waitList;
             $p->waitList[] = $this;
@@ -43,12 +44,10 @@ class Promise implements PromiseInterface
             return $p;
         }
 
-        // Return a fulfilled promise and immediately invoke any callbacks.
         if ($this->state === self::FULFILLED) {
             if (!$onFulfilled) {
                 return $this;
             }
-
             $callable = $onFulfilled;
         } else {
             if (!$onRejected) {
@@ -59,7 +58,8 @@ class Promise implements PromiseInterface
 
         $queue = Factory::queue();
         $result = $this->result;
-        $p = new static([$queue, 'run']);
+        $p = clone $this;
+        $p->waitFn = [$queue, 'run'];
         $queue->add(static function () use ($p, $result, $callable) {
             if ($p->getState() === self::PENDING) {
                 try {
@@ -108,7 +108,8 @@ class Promise implements PromiseInterface
             return;
         }
 
-        $this->waitFn = $this->waitList = null;
+        $this->waitFn = null;
+        $this->waitList = [];
 
         if ($this->cancelFn) {
             $fn = $this->cancelFn;
@@ -156,9 +157,8 @@ class Promise implements PromiseInterface
         $this->state = $state;
         $this->result = $value;
         $handlers = $this->handlers;
-        $this->handlers = null;
-        $this->waitList = $this->waitFn = null;
-        $this->cancelFn = null;
+        $this->handlers = $this->waitList = [];
+        $this->waitFn = $this->cancelFn = null;
 
         if (!$handlers) {
             return;
@@ -274,7 +274,7 @@ class Promise implements PromiseInterface
     private function invokeWaitList()
     {
         $waitList = $this->waitList;
-        $this->waitList = null;
+        $this->waitList = [];
 
         foreach ($waitList as $result) {
             while (true) {
@@ -300,5 +300,15 @@ class Promise implements PromiseInterface
         $this->result = $result;
 
         return $this;
+    }
+
+    /**
+     * for `then` method
+     */
+    public function __clone()
+    {
+        $this->state = self::PENDING;
+        $this->result = $this->cancelFn = $this->waitFn = null;
+        $this->waitList = $this->handlers = [];
     }
 }

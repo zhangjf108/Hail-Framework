@@ -1,5 +1,5 @@
 <?php
-namespace Hail\Http\Client;
+namespace Hail\Http\Client\Middleware;
 
 use Hail\Util\MimeType;
 use Hail\Promise\PromiseInterface;
@@ -9,7 +9,7 @@ use Psr\Http\Message\RequestInterface;
  * Prepares requests that contain a body, adding the Content-Length,
  * Content-Type, and Expect headers.
  */
-class PrepareBodyMiddleware
+class PrepareBody implements MiddlewareInterface
 {
     /** @var callable  */
     private $nextHandler;

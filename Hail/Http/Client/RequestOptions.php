@@ -252,4 +252,42 @@ interface RequestOptions
      * force_ip_resolve: (bool) Force client to use only ipv4 or ipv6 protocol
      */
     const FORCE_IP_RESOLVE = 'force_ip_resolve';
+
+    /**
+     * retry_decider: (callable) Function that accepts the number of retries,
+     * a request, [response], and [exception] and returns true if the request is to be retried.
+     */
+    const RETRY_DECIDER = 'retry_decider';
+
+    /**
+     * retry_delay: (callable) Function that accepts the number of retries and [response]
+     * and returns the number of milliseconds to delay. If no delay function is provided,
+     * a simple implementation of exponential backoff will be utilized.
+     */
+    const RETRY_DELAY = 'retry_delay';
+
+    /**
+     * map_request: (callable) Function that accepts a RequestInterface and returns a RequestInterface.
+     */
+    const MAP_REQUEST = 'map_request';
+
+    /**
+     * map_response: (callable) Function that accepts a ResponseInterface and returns a ResponseInterface.
+     */
+    const MAP_RESPONSE = 'map_response';
+
+    /**
+     * logger: (LoggerInterface) Logs messages.
+     */
+    const LOGGER = 'logger';
+
+    /**
+     * log_formatter: (string) message string template.
+     */
+    const LOG_FORMAT = 'log_format';
+
+    /**
+     * log_level: (int) Level at which to log requests.
+     */
+    const LOG_LEVEL = 'log_level';
 }

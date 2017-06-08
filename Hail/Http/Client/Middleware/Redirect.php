@@ -1,9 +1,10 @@
 <?php
 
-namespace Hail\Http\Client;
+namespace Hail\Http\Client\Middleware;
 
 use Hail\Http\Client\Exception\BadResponseException;
 use Hail\Http\Client\Exception\TooManyRedirectsException;
+use Hail\Http\Client\Helpers;
 use Hail\Http\Factory;
 use Hail\Promise\PromiseInterface;
 use Psr\Http\Message\RequestInterface;
@@ -16,7 +17,7 @@ use Psr\Http\Message\UriInterface;
  * Apply this middleware like other middleware using
  * {@see Hail\Http\Client\Middleware::redirect()}.
  */
-class RedirectMiddleware
+class Redirect implements MiddlewareInterface
 {
     const HISTORY_HEADER = 'X-Guzzle-Redirect-History';
 

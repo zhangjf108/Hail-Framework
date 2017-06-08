@@ -1,6 +1,6 @@
 <?php
 
-namespace Hail\Http\Client;
+namespace Hail\Http\Client\Middleware;
 
 use Hail\Promise\Factory;
 use Hail\Promise\PromiseInterface;
@@ -11,32 +11,16 @@ use Psr\Http\Message\ResponseInterface;
  * Middleware that retries requests based on the boolean result of
  * invoking the provided "decider" function.
  */
-class RetryMiddleware
+class Retry implements MiddlewareInterface
 {
-    /** @var callable */
+    /** @var callable  */
     private $nextHandler;
 
-    /** @var callable */
-    private $decider;
-
     /**
-     * @param callable $decider     Function that accepts the number of retries,
-     *                              a request, [response], and [exception] and
-     *                              returns true if the request is to be
-     *                              retried.
      * @param callable $nextHandler Next handler to invoke.
-     * @param callable $delay       Function that accepts the number of retries
-     *                              and [response] and returns the number of
-     *                              milliseconds to delay.
      */
-    public function __construct(
-        callable $decider,
-        callable $nextHandler,
-        callable $delay = null
-    ) {
-        $this->decider = $decider;
+    public function __construct(callable $nextHandler) {
         $this->nextHandler = $nextHandler;
-        $this->delay = $delay ?: __CLASS__ . '::exponentialDelay';
     }
 
     /**
@@ -46,7 +30,7 @@ class RetryMiddleware
      *
      * @return int
      */
-    public static function exponentialDelay($retries)
+    public static function exponentialDelay($retries): int
     {
         return (int) 2 ** ($retries - 1);
     }
@@ -59,11 +43,18 @@ class RetryMiddleware
      */
     public function __invoke(RequestInterface $request, array $options)
     {
+        $fn = $this->nextHandler;
+        if (!isset($options['retry_decider'])) {
+            return $fn($request, $options);
+        }
+
+        if (!isset($options['retry_delay'])) {
+            $options['retry_delay'] = [__CLASS__, 'exponentialDelay'];
+        }
+
         if (!isset($options['retries'])) {
             $options['retries'] = 0;
         }
-
-        $fn = $this->nextHandler;
 
         return $fn($request, $options)
             ->then(
@@ -74,8 +65,10 @@ class RetryMiddleware
 
     private function onFulfilled(RequestInterface $req, array $options)
     {
+
         return function ($value) use ($req, $options) {
-            if (!($this->decider)($options['retries'], $req, $value, null)) {
+            $decider = $options['retry_decider'];
+            if (!$decider($options['retries'], $req, $value, null)) {
                 return $value;
             }
 
@@ -86,7 +79,8 @@ class RetryMiddleware
     private function onRejected(RequestInterface $req, array $options)
     {
         return function ($reason) use ($req, $options) {
-            if (!($this->decider)($options['retries'], $req, null, $reason)) {
+            $decider = $options['retry_decider'];
+            if (!$decider($options['retries'], $req, null, $reason)) {
                 return Factory::rejection($reason);
             }
 
@@ -96,7 +90,8 @@ class RetryMiddleware
 
     private function doRetry(RequestInterface $request, array $options, ResponseInterface $response = null)
     {
-        $options['delay'] = ($this->delay)(++$options['retries'], $response);
+        $delay = $options['retry_delay'];
+        $options['delay'] = $delay(++$options['retries'], $response);
 
         return $this($request, $options);
     }
