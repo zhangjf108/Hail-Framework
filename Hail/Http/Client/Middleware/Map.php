@@ -3,6 +3,7 @@
 namespace Hail\Http\Client\Middleware;
 
 use Hail\Promise\PromiseInterface;
+use Hail\Http\Client\MiddlewareInterface;
 use Psr\Http\Message\RequestInterface;
 
 /**
@@ -12,37 +13,19 @@ use Psr\Http\Message\RequestInterface;
  */
 class Map implements MiddlewareInterface
 {
-    /** @var callable  */
-    private $nextHandler;
-
-    /**
-     * @param callable $nextHandler Next handler to invoke.
-     */
-    public function __construct(callable $nextHandler)
-    {
-        $this->nextHandler = $nextHandler;
-    }
-
-    /**
-     * @param RequestInterface $request
-     * @param array            $options
-     *
-     * @return PromiseInterface
-     */
-    public function __invoke(RequestInterface $request, array $options)
+    public function process(RequestInterface $request, array $options, callable $next): PromiseInterface
     {
         if (empty($options['map_request'])) {
             $map = $options['map_request'];
             $request = $map($request);
         }
 
-        $fn = $this->nextHandler;
-        $response = $fn($request, $options);
+        $promise = $next($request, $options);
 
         if (empty($options['map_response'])) {
-            return $response;
+            return $promise;
         }
 
-        return $response->then($options['map_response']);
+        return $promise->then($options['map_response']);
     }
 }

@@ -4,6 +4,7 @@ namespace Hail\Http\Client\Middleware;
 
 use Hail\Http\Client\Exception\BadResponseException;
 use Hail\Http\Client\Exception\TooManyRedirectsException;
+use Hail\Http\Client\MiddlewareInterface;
 use Hail\Http\Client\Helpers;
 use Hail\Http\Factory;
 use Hail\Promise\PromiseInterface;
@@ -31,29 +32,10 @@ class Redirect implements MiddlewareInterface
         'track_redirects' => false,
     ];
 
-    /** @var callable */
-    private $nextHandler;
-
-    /**
-     * @param callable $nextHandler Next handler to invoke.
-     */
-    public function __construct(callable $nextHandler)
+    public function process(RequestInterface $request, array $options, callable $next): PromiseInterface
     {
-        $this->nextHandler = $nextHandler;
-    }
-
-    /**
-     * @param RequestInterface $request
-     * @param array            $options
-     *
-     * @return PromiseInterface
-     */
-    public function __invoke(RequestInterface $request, array $options)
-    {
-        $fn = $this->nextHandler;
-
         if (empty($options['allow_redirects'])) {
-            return $fn($request, $options);
+            return $next($request, $options);
         }
 
         if ($options['allow_redirects'] === true) {
@@ -66,26 +48,28 @@ class Redirect implements MiddlewareInterface
         }
 
         if (empty($options['allow_redirects']['max'])) {
-            return $fn($request, $options);
+            return $next($request, $options);
         }
 
-        return $fn($request, $options)
-            ->then(function (ResponseInterface $response) use ($request, $options) {
-                return $this->checkRedirect($request, $options, $response);
+        return $next($request, $options)
+            ->then(function (ResponseInterface $response) use ($request, $options, $next) {
+                return $this->checkRedirect($request, $options, $response, $next);
             });
     }
 
     /**
-     * @param RequestInterface                   $request
-     * @param array                              $options
-     * @param ResponseInterface|PromiseInterface $response
+     * @param RequestInterface  $request
+     * @param array             $options
+     * @param ResponseInterface $response
+     * @param callable          $next
      *
      * @return ResponseInterface|PromiseInterface
      */
     public function checkRedirect(
         RequestInterface $request,
         array $options,
-        ResponseInterface $response
+        ResponseInterface $response,
+        callable $next
     ) {
         if (!$response->hasHeader('Location') ||
             ((string) $response->getStatusCode())[0] !== '3'
@@ -105,7 +89,7 @@ class Redirect implements MiddlewareInterface
         }
 
         /** @var PromiseInterface|ResponseInterface $promise */
-        $promise = $this($nextRequest, $options);
+        $promise = $this->process($nextRequest, $options, $next);
 
         // Add headers to be able to track history of redirects.
         if (!empty($options['allow_redirects']['track_redirects'])) {

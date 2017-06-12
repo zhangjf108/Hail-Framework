@@ -3,6 +3,7 @@
 namespace Hail\Http\Client\Middleware;
 
 use Hail\Http\Client\Exception\RequestException;
+use Hail\Http\Client\MiddlewareInterface;
 use Hail\Promise\PromiseInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -13,32 +14,13 @@ use Psr\Http\Message\ResponseInterface;
  */
 class HttpErrors implements MiddlewareInterface
 {
-    /** @var callable  */
-    private $nextHandler;
-
-    /**
-     * @param callable $nextHandler Next handler to invoke.
-     */
-    public function __construct(callable $nextHandler)
+    public function process(RequestInterface $request, array $options, callable $next): PromiseInterface
     {
-        $this->nextHandler = $nextHandler;
-    }
-
-    /**
-     * @param RequestInterface $request
-     * @param array            $options
-     *
-     * @return PromiseInterface
-     * @throws RequestException
-     */
-    public function __invoke(RequestInterface $request, array $options)
-    {
-        $fn = $this->nextHandler;
         if (empty($options['http_errors'])) {
-            return $fn($request, $options);
+            return $next($request, $options);
         }
 
-        return $fn($request, $options)->then(
+        return $next($request, $options)->then(
             function (ResponseInterface $response) use ($request) {
                 $code = $response->getStatusCode();
                 if ($code < 400) {

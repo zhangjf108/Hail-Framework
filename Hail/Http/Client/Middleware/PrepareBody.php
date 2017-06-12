@@ -1,6 +1,7 @@
 <?php
 namespace Hail\Http\Client\Middleware;
 
+use Hail\Http\Client\MiddlewareInterface;
 use Hail\Util\MimeType;
 use Hail\Promise\PromiseInterface;
 use Psr\Http\Message\RequestInterface;
@@ -11,32 +12,13 @@ use Psr\Http\Message\RequestInterface;
  */
 class PrepareBody implements MiddlewareInterface
 {
-    /** @var callable  */
-    private $nextHandler;
-
-    /**
-     * @param callable $nextHandler Next handler to invoke.
-     */
-    public function __construct(callable $nextHandler)
+    public function process(RequestInterface $request, array $options, callable $next): PromiseInterface
     {
-        $this->nextHandler = $nextHandler;
-    }
-
-    /**
-     * @param RequestInterface $request
-     * @param array            $options
-     *
-     * @return PromiseInterface
-     */
-    public function __invoke(RequestInterface $request, array $options)
-    {
-        $fn = $this->nextHandler;
-
         // Don't do anything if the request has no body.
         $body = $request->getBody();
         $size = $body->getSize();
         if ($size === 0) {
-            return $fn($request, $options);
+            return $next($request, $options);
         }
 
         // Add a default content-type if possible.
@@ -61,7 +43,7 @@ class PrepareBody implements MiddlewareInterface
         // Add the expect header if needed.
         $request = $this->addExpectHeader($request, $options);
 
-        return $fn($request, $options);
+        return $next($request, $options);
     }
 
     private function addExpectHeader(

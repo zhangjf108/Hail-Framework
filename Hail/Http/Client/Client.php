@@ -63,10 +63,6 @@ class Client implements ClientInterface
      */
     public function __construct(array $config = [])
     {
-        if (!isset($config['handler'])) {
-            $config['handler'] = HandlerStack::default();
-        }
-
         // Convert the base_uri to a UriInterface
         if (isset($config['base_uri'])) {
             $config['base_uri'] = Factory::uri($config['base_uri']);
@@ -276,10 +272,10 @@ class Client implements ClientInterface
         }
 
         $request = $this->applyOptions($request, $options);
-        $handler = $options['handler'];
+        $handler = HandlerStack::getInstance();
 
         try {
-            return Promise\Factory::promise($handler($request, $options));
+            return Promise\Factory::promise($handler->process($request, $options));
         } catch (\Exception $e) {
             return Promise\Factory::rejection($e);
         }

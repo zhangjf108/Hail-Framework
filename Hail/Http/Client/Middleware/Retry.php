@@ -2,6 +2,7 @@
 
 namespace Hail\Http\Client\Middleware;
 
+use Hail\Http\Client\MiddlewareInterface;
 use Hail\Promise\Factory;
 use Hail\Promise\PromiseInterface;
 use Psr\Http\Message\RequestInterface;
@@ -13,16 +14,6 @@ use Psr\Http\Message\ResponseInterface;
  */
 class Retry implements MiddlewareInterface
 {
-    /** @var callable  */
-    private $nextHandler;
-
-    /**
-     * @param callable $nextHandler Next handler to invoke.
-     */
-    public function __construct(callable $nextHandler) {
-        $this->nextHandler = $nextHandler;
-    }
-
     /**
      * Default exponential backoff delay function.
      *
@@ -35,17 +26,10 @@ class Retry implements MiddlewareInterface
         return (int) 2 ** ($retries - 1);
     }
 
-    /**
-     * @param RequestInterface $request
-     * @param array            $options
-     *
-     * @return PromiseInterface
-     */
-    public function __invoke(RequestInterface $request, array $options)
+    public function process(RequestInterface $request, array $options, callable $next): PromiseInterface
     {
-        $fn = $this->nextHandler;
         if (!isset($options['retry_decider'])) {
-            return $fn($request, $options);
+            return $next($request, $options);
         }
 
         if (!isset($options['retry_delay'])) {
@@ -56,43 +40,42 @@ class Retry implements MiddlewareInterface
             $options['retries'] = 0;
         }
 
-        return $fn($request, $options)
+        return $next($request, $options)
             ->then(
-                $this->onFulfilled($request, $options),
-                $this->onRejected($request, $options)
+                $this->onFulfilled($request, $options, $next),
+                $this->onRejected($request, $options, $next)
             );
     }
 
-    private function onFulfilled(RequestInterface $req, array $options)
+    private function onFulfilled(RequestInterface $req, array $options, callable $next)
     {
-
-        return function ($value) use ($req, $options) {
+        return function ($value) use ($req, $options, $next) {
             $decider = $options['retry_decider'];
             if (!$decider($options['retries'], $req, $value, null)) {
                 return $value;
             }
 
-            return $this->doRetry($req, $options, $value);
+            return $this->doRetry($req, $options, $next, $value);
         };
     }
 
-    private function onRejected(RequestInterface $req, array $options)
+    private function onRejected(RequestInterface $req, array $options, callable $next)
     {
-        return function ($reason) use ($req, $options) {
+        return function ($reason) use ($req, $options, $next) {
             $decider = $options['retry_decider'];
             if (!$decider($options['retries'], $req, null, $reason)) {
                 return Factory::rejection($reason);
             }
 
-            return $this->doRetry($req, $options);
+            return $this->doRetry($req, $options, $next);
         };
     }
 
-    private function doRetry(RequestInterface $request, array $options, ResponseInterface $response = null)
+    private function doRetry(RequestInterface $request, array $options, callable $next, ResponseInterface $response = null)
     {
         $delay = $options['retry_delay'];
         $options['delay'] = $delay(++$options['retries'], $response);
 
-        return $this($request, $options);
+        return $this->process($request, $options, $next);
     }
 }
