@@ -103,13 +103,12 @@ class Template
      */
     public function data(array $data = null)
     {
-        if (null === $data) {
-            return $this->data;
+        if (null !== $data) {
+            $this->data = array_merge($this->data, $data);
         }
 
-        $this->data = array_merge($this->data, $data);
+        return $this->data;
     }
-
 
     /**
      * Render the template and layout.
@@ -153,8 +152,6 @@ class Template
      *
      * @param  string $name
      * @param  array  $data
-     *
-     * @return null
      */
     public function layout($name, array $data = [])
     {
@@ -167,7 +164,7 @@ class Template
      *
      * @param  string $name
      *
-     * @return null
+     * @throws LogicException
      */
     public function start($name)
     {
@@ -189,7 +186,7 @@ class Template
      *
      * @param  string $name
      *
-     * @return null
+     * @throws LogicException
      */
     public function push($name)
     {

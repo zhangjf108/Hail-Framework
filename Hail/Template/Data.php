@@ -29,7 +29,8 @@ class Data
      * @param  array             $data      ;
      * @param  null|string|array $templates ;
      *
-     * @return Data
+     * @return $this
+     * @throws LogicException
      */
     public function add(array $data, $templates = null)
     {
@@ -55,7 +56,7 @@ class Data
      *
      * @param  array $data ;
      *
-     * @return Data
+     * @return $this
      */
     public function shareWithAll($data)
     {
@@ -70,7 +71,7 @@ class Data
      * @param  array $data      ;
      * @param  array $templates ;
      *
-     * @return Data
+     * @return $this
      */
     public function shareWithSome($data, array $templates)
     {

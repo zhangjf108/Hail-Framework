@@ -64,19 +64,24 @@ class Engine
 
     /**
      * Add preassigned template data.
-     * @param  array             $data;
-     * @param  null|string|array $templates;
-     * @return Engine
+     *
+     * @param  array             $data      ;
+     * @param  null|string|array $templates ;
+     *
+     * @return self
      */
-    public function addData(array $data, $templates = null)
+    public function addData(array $data, $templates = null): self
     {
         $this->data->add($data, $templates);
+
         return $this;
     }
 
     /**
      * Get all preassigned template data.
-     * @param  null|string $template;
+     *
+     * @param  null|string $template ;
+     *
      * @return array
      */
     public function getData($template = null)
@@ -91,7 +96,7 @@ class Engine
      *
      * @return self
      */
-    public function setDirectory($directory)
+    public function setDirectory($directory): self
     {
         $this->directory = $this->normalizeDirectory($directory);
 
@@ -105,7 +110,7 @@ class Engine
      *
      * @return self
      */
-    public function setFallback($fallback)
+    public function setFallback($fallback): self
     {
         $this->fallback = $this->normalizeDirectory($fallback);
 
@@ -119,7 +124,7 @@ class Engine
      *
      * @return self
      */
-    public function setCacheDirectory($directory)
+    public function setCacheDirectory($directory): self
     {
         $this->cacheDirectory = $this->normalizeDirectory($directory);
 
@@ -132,9 +137,9 @@ class Engine
      * @param string   $name
      * @param callback $callback
      *
-     * @return Engine
+     * @return self
      */
-    public function registerFunction(string $name, callable $callback)
+    public function registerFunction(string $name, callable $callback): self
     {
         if (preg_match('/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/', $name) !== 1) {
             throw new \LogicException('Not a valid function name.');
@@ -150,9 +155,9 @@ class Engine
      *
      * @param  string $name
      *
-     * @return Engine
+     * @return self
      */
-    public function dropFunction($name)
+    public function dropFunction($name): self
     {
         unset($this->functions[$name]);
 
@@ -179,17 +184,17 @@ class Engine
      * Call the function.
      *
      * @param string $name
-     * @param old    $template
+     * @param Template $template
      * @param array  $arguments
      *
      * @return mixed
      */
-    public function callFunction($name, old $template = null, $arguments = [])
+    public function callFunction($name, Template $template = null, $arguments = [])
     {
         $callable = $this->getFunction($name);
 
-        if (is_array($callable) and
-            isset($callable[0]) and
+        if (is_array($callable) &&
+            isset($callable[0]) &&
             $callable[0] instanceof ExtensionInterface
         ) {
             $callable[0]->template = $template;

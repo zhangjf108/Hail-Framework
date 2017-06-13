@@ -3,7 +3,7 @@
 namespace Hail\Template\Extension;
 
 use Hail\Template\Engine;
-use Hail\Template\old;
+use Hail\Template\Template;
 use LogicException;
 
 /**
@@ -14,7 +14,7 @@ class Asset implements ExtensionInterface
     /**
      * Instance of the current template.
      *
-     * @var old
+     * @var Template
      */
     public $template;
 
