@@ -4,10 +4,11 @@ namespace Hail;
 
 use Hail\Container\Container;
 use Hail\Http\{
-    HttpEvents, Event\DispatcherEvent, Response, Server, Emitter\EmitterInterface
+    Response, Server, Emitter\EmitterInterface
 };
 use Hail\Exception\BadRequestException;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 class Application
 {
@@ -76,16 +77,28 @@ class Application
         $this->get('event')->attach($eventName, $callable);
     }
 
-    public function run()
+    /**
+     * @return Server
+     */
+    public function getServer(): Server
     {
-        $this->event(HttpEvents::DISPATCHER, [$this, 'changeRequest']);
+        if ($this->server === null) {
+            $this->server = Server::createServer(
+                $this->config('middleware'),
+                $_SERVER, $_GET, $_POST, $_COOKIE, $_FILES
+            );
 
-        $this->server = Http\Server::createServer(
-            $this->config('middleware'),
-            $_SERVER, $_GET, $_POST, $_COOKIE, $_FILES
-        );
+            $this->setRequest(
+                $this->server->getRequest()
+            );
+        }
 
-        $this->server->listen($this->container);
+        return $this->server;
+    }
+
+    public function listen()
+    {
+        $this->getServer()->listen($this->container);
     }
 
     /**
@@ -98,11 +111,9 @@ class Application
         $this->server->setEmitter($emitter);
     }
 
-    public function changeRequest(DispatcherEvent $event): void
+    public function setRequest(ServerRequestInterface $request): void
     {
-        $this->get('request')->setServerRequest(
-            $event->getRequest()
-        );
+        $this->get('request')->setServerRequest($request);
     }
 
     public function call(callable $callback, array $map = [])
@@ -126,18 +137,21 @@ class Application
     }
 
     /**
-     * @param string $method
-     * @param string $url
+     * @param ServerRequestInterface $request
      *
      * @return ResponseInterface|array
      * @throws BadRequestException
      */
-    public function dispatch(string $method, string $url)
+    public function dispatch(ServerRequestInterface $request)
     {
+        $this->setRequest($request);
+
         /** @var Router $router */
         $router = $this->get('router');
-
-        $result = $router->dispatch($method, $url);
+        $result = $router->dispatch(
+            $request->getMethod(),
+            $request->getUri()->getPath()
+        );
 
         if (isset($result['error'])) {
             throw new BadRequestException('Router not found', $result['error']);
@@ -281,9 +295,7 @@ class Application
 
     public function render(ResponseInterface $response, string $name, array $params = []): ResponseInterface
     {
-        /**
-         * @var Template\Engine $template
-         */
+        /** @var Template\Engine $template */
         $template = $this->get('template');
 
         $response->getBody()->write(

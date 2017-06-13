@@ -53,6 +53,11 @@ class Server
         $this->request = $request;
     }
 
+    public function getRequest(): ServerRequestInterface
+    {
+        return $this->request;
+    }
+
     /**
      * Set alternate response emitter to use.
      *
@@ -81,7 +86,6 @@ class Server
      * @param array          $body
      * @param array          $cookies
      * @param array          $files
-     * @param Container|null $container
      *
      * @return static
      */

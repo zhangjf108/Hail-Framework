@@ -50,18 +50,4 @@ class Delegate implements DelegateInterface
 
 		return $middleware->process($request, $this);
 	}
-
-	/**
-	 * Dispatch the next available middleware and return the response.
-	 *
-	 * This method duplicates `next()` to provide backwards compatibility with non-PSR 15 middleware.
-	 *
-	 * @param ServerRequestInterface $request
-	 *
-	 * @return ResponseInterface
-	 */
-	public function __invoke(ServerRequestInterface $request): ResponseInterface
-	{
-		return $this->process($request);
-	}
 }

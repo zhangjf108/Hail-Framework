@@ -37,10 +37,7 @@ class Route implements MiddlewareInterface
     public function process(ServerRequestInterface $request, DelegateInterface $delegate)
     {
         try {
-            $handler = $this->app->dispatch(
-                $request->getMethod(),
-                $request->getUri()->getPath()
-            );
+            $handler = $this->app->dispatch($request);
 
             if ($handler instanceof ResponseInterface) {
                 return $handler;

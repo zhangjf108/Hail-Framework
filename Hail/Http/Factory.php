@@ -72,8 +72,7 @@ final class Factory
      *
      * @return StreamInterface
      */
-    public
-    static function stream(
+    public static function stream(
         $body = null
     ): StreamInterface {
         if ($body instanceof StreamInterface) {
@@ -93,8 +92,7 @@ final class Factory
         return $stream;
     }
 
-    public
-    static function streamFromFile(
+    public static function streamFromFile(
         $file,
         $mode = 'r'
     ): StreamInterface {
@@ -103,8 +101,7 @@ final class Factory
         return new Stream($resource);
     }
 
-    public
-    static function uploadedFile(
+    public static function uploadedFile(
         $file,
         int $size = null,
         int $error = \UPLOAD_ERR_OK,

@@ -103,16 +103,6 @@ class Dispatcher implements MiddlewareInterface
             return null;
         }
 
-        if ($this->container !== null) {
-            static $event;
-            if ($event === null) {
-                $event = new DispatcherEvent();
-            }
-
-            $this->container->get('event')
-                ->trigger($event->setRequest($request));
-        }
-
         $middleware = $this->middleware[$this->index];
 
         if (is_array($middleware)) {
