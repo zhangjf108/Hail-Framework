@@ -39,7 +39,7 @@ class Delegate implements DelegateInterface
 	 */
 	public function process(ServerRequestInterface $request): ResponseInterface
 	{
-		$middleware = $this->dispatcher->next($request);
+		$middleware = $this->dispatcher->next();
 		if ($middleware === null) {
 			if ($this->delegate !== null) {
 				return $this->delegate->process($request);

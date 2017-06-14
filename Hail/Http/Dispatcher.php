@@ -51,15 +51,13 @@ class Dispatcher implements MiddlewareInterface
     /**
      * Return the next available middleware frame in the queue.
      *
-     * @param ServerRequestInterface $request for matcher
-     *
      * @return MiddlewareInterface|false
      */
-    public function next(ServerRequestInterface $request): ?MiddlewareInterface
+    public function next(): ?MiddlewareInterface
     {
         ++$this->index;
 
-        return $this->get($request);
+        return $this->get();
     }
 
     /**
@@ -74,7 +72,7 @@ class Dispatcher implements MiddlewareInterface
     {
         $this->index = 0;
 
-        return $this->get($request)->process($request, new Delegate($this));
+        return $this->get()->process($request, new Delegate($this));
     }
 
 
@@ -86,49 +84,22 @@ class Dispatcher implements MiddlewareInterface
     {
         $this->index = 0;
 
-        return $this->get($request)->process($request, new Delegate($this, $delegate));
+        return $this->get()->process($request, new Delegate($this, $delegate));
     }
 
     /**
      * Return the next available middleware frame in the middleware.
      *
-     * @param ServerRequestInterface $request for matcher
-     *
      * @return MiddlewareInterface
      * @throws \LogicException
      */
-    public function get(ServerRequestInterface $request): ?MiddlewareInterface
+    public function get(): ?MiddlewareInterface
     {
         if (!isset($this->middleware[$this->index])) {
             return null;
         }
 
         $middleware = $this->middleware[$this->index];
-
-        if (is_array($middleware)) {
-            $conditions = $middleware;
-            $middleware = array_pop($conditions);
-
-            foreach ($conditions as $condition) {
-                if ($condition === true) {
-                    continue;
-                }
-
-                if ($condition === false) {
-                    return $this->next($request);
-                }
-
-                if (is_string($condition)) {
-                    $condition = new Matcher\Path($condition);
-                } elseif (!($condition instanceof Matcher\MatcherInterface)) {
-                    throw new \LogicException('Invalid matcher. Must be a boolean, string or an instance of Hail\\Http\\Matcher\\MatcherInterface');
-                }
-
-                if (!$condition->match($request)) {
-                    return $this->next($request);
-                }
-            }
-        }
 
         if (is_string($middleware)) {
             if ($this->container === null) {
