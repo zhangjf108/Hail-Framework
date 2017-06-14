@@ -61,7 +61,9 @@ class Generators
 
 		if ($length < 1) {
 			throw new InvalidArgumentException('Length must be greater than zero.');
-		} elseif ($chLen < 2) {
+		}
+
+		if ($chLen < 2) {
 			throw new InvalidArgumentException('Character list must contain as least two chars.');
 		}
 
