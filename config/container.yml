@@ -43,7 +43,7 @@ session:
 storage: Hail\Factory\Storage::mount
 
 template:
-  class|to: Hail\Latte\Engine
+  class|to: Hail\Template\Engine
   arguments: [CONFIG.template]
 
 # Tools

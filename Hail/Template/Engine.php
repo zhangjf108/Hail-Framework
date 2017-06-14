@@ -47,7 +47,7 @@ class Engine
 
     public function __construct(array $config = [])
     {
-        if (!isset($config['directory'], $config['fallback'])) {
+        if (!isset($config['directory']) && !isset($config['fallback'])) {
             throw new \LogicException('Path to template directory is not set.');
         }
 
@@ -55,9 +55,9 @@ class Engine
             throw new \LogicException('Path to temporary directory is not set.');
         }
 
-        $this->directory = $this->setDirectory($config['directory'] ?? null);
-        $this->fallback = $this->setFallback($config['fallback'] ?? null);
-        $this->cacheDirectory = $this->setCacheDirectory($config['cache']);
+        $this->setDirectory($config['directory'] ?? null);
+        $this->setFallback($config['fallback'] ?? null);
+        $this->setCacheDirectory($config['cache']);
 
         $this->data = new Data();
     }
@@ -287,7 +287,7 @@ class Engine
             'cache' => $cache,
         ] = $this->getTemplateFile($name);
 
-        if (filemtime($template) < filemtime($cache)) {
+        if (filemtime($template) < @filemtime($cache)) {
             return $cache;
         }
 
@@ -346,15 +346,16 @@ class Engine
         $dir = dirname($file);
         if (!is_dir($dir)) {
             if (!@mkdir($dir, 0755, true) && !is_dir($dir)) {
-                throw new \RuntimeException('Cache directory not exists: ' . str_replace($this->cacheDirectory, '',
-                        $dir));
+                throw new \RuntimeException('Cache directory not exists: ' .
+                    str_replace($this->cacheDirectory, '', $dir)
+                );
             }
         }
 
         return $file;
     }
 
-    protected function getFile($file)
+    protected function getFile(string $file)
     {
         if (is_dir($file)) {
             $file .= '/index.php';
