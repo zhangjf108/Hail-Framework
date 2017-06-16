@@ -9,6 +9,9 @@
 
 namespace Hail\Session;
 
+use Hail\Http\Request;
+use Hail\Http\Response;
+
 /**
  *
  * A central control point for new session segments, PHP session management
@@ -90,7 +93,7 @@ class Session
      * @var bool
      *
      */
-    protected $flash_moved = false;
+    protected $flashMoved = false;
 
     /**
      *
@@ -185,7 +188,7 @@ class Session
         $started = session_status() === PHP_SESSION_ACTIVE;
 
         // if the session was started externally, move the flash values forward
-        if ($started && !$this->flash_moved) {
+        if ($started && !$this->flashMoved) {
             $this->moveFlash();
         }
 
@@ -222,7 +225,7 @@ class Session
         }
         $_SESSION[Session::FLASH_NOW] = $_SESSION[Session::FLASH_NEXT];
         $_SESSION[Session::FLASH_NEXT] = [];
-        $this->flash_moved = true;
+        $this->flashMoved = true;
     }
 
     /**
