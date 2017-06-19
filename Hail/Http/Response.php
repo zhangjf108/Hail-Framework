@@ -69,7 +69,9 @@ class Response
         $this->app = $app;
         $this->request = $request;
 
-        $this->cookie = new Cookie($app->config('cookie'));
+        $this->cookie = new Cookie(
+            $app->config('cookie')
+        );
         $this->header = new Header();
 
         $this->status(200);

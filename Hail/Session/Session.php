@@ -9,8 +9,13 @@
 
 namespace Hail\Session;
 
-use Hail\Http\Request;
+use Hail\Factory\{
+    Cache,
+    Redis,
+    Database
+};
 use Hail\Http\Response;
+use Hail\Util\ArrayTrait;
 
 /**
  *
@@ -22,6 +27,8 @@ use Hail\Http\Response;
  */
 class Session
 {
+    use ArrayTrait;
+
     /**
      *
      * Session key for the "next" flash values.
@@ -53,38 +60,12 @@ class Session
 
     /**
      *
-     * Incoming cookies from the client, typically a copy of the $_COOKIE
-     * superglobal.
-     *
-     * @var array
-     *
-     */
-    protected $cookies;
-
-    /**
-     *
      * Session cookie parameters.
      *
      * @var array
      *
      */
     protected $cookieParams = [];
-
-    /**
-     *
-     * A callable to invoke when deleting the session cookie. The callable
-     * should have the signature ...
-     *
-     *      function ($cookie_name, $cookieParams)
-     *
-     * ... and return null.
-     *
-     * @var callable|null
-     *
-     * @see setDeleteCookie()
-     *
-     */
-    protected $deleteCookie;
 
     /**
      *
@@ -96,52 +77,72 @@ class Session
     protected $flashMoved = false;
 
     /**
-     *
-     * Constructor
-     *
-     * @param array         $cookies               Optional: An array of cookies from the client, typically a
-     *                                             copy of $_COOKIE. Empty array by default.
-     *
-     * @param callable|null $deleteCookie         Optional: An alternative callable
-     *                                             to invoke when deleting the session cookie. Defaults to `null`.
-     *
+     * @var \SessionHandlerInterface
      */
-    public function __construct(
-        array $cookies = [],
-        $deleteCookie = null
-    ) {
-        $this->cookies = $cookies;
+    private $handler;
 
-        $this->setDeleteCookie($deleteCookie);
-
-        $this->cookieParams = session_get_cookie_params();
-    }
+    /**
+     * @var Response
+     */
+    private $response;
 
     /**
      *
-     * Sets the delete-cookie callable.
+     * Constructor
      *
-     * If parameter is `null`, the session cookie will be deleted using the
-     * traditional way, i.e. using an expiration date in the past.
-     *
-     * @param callable|null $deleteCookie The callable to invoke when deleting the
-     *                                     session cookie.
-     *
+     * @param array    $cookieParams
+     * @param Response $response
      */
-    public function setDeleteCookie($deleteCookie)
+    public function __construct(array $cookieParams = [], Response $response = null)
     {
-        $this->deleteCookie = $deleteCookie;
-        if (!$this->deleteCookie) {
-            $this->deleteCookie = function ($name, $params) {
-                setcookie(
-                    $name,
-                    '',
-                    time() - 42000,
-                    $params['path'],
-                    $params['domain']
-                );
-            };
+        $this->response = $response;
+
+        $this->cookieParams = session_get_cookie_params();
+
+        foreach ($this->cookieParams as $k => &$v) {
+            if (isset($params[$k])) {
+                $v = $params[$k];
+            }
         }
+        unset($v);
+    }
+
+    public function setHandler(array $config)
+    {
+        $connect = $config['connect'] ?? [];
+
+        switch (strtolower($config['handler'])) {
+            case 'redis':
+                $class = Handler\Redis::class;
+                $conn = Redis::client($connect);
+                break;
+
+            case 'simple':
+            case 'simplecache':
+                $class = Handler\SimpleCache::class;
+                $conn = Cache::simple($connect);
+                break;
+
+            case 'cache':
+                $class = Handler\Cache::class;
+                $conn = Cache::pool($connect);
+                break;
+
+            case 'db':
+                $class = Handler\Database::class;
+                $conn = Database::pdo($connect);
+                break;
+
+            default:
+                return;
+        }
+
+        $settings = $config['settings'] ?? [];
+        if (!isset($settings['lifetime']) && isset($this->cookieParams['lifetime'])) {
+            $settings['lifetime'] = $this->cookieParams['lifetime'];
+        }
+
+        $this->handler = new $class($conn, $settings);
     }
 
     /**
@@ -160,20 +161,6 @@ class Session
     public function getSegment($name)
     {
         return new Segment($this, $name);
-    }
-
-    /**
-     *
-     * Is a session available to be resumed?
-     *
-     * @return bool
-     *
-     */
-    public function isResumable()
-    {
-        $name = $this->getName();
-
-        return isset($this->cookies[$name]);
     }
 
     /**
@@ -200,12 +187,47 @@ class Session
      *
      * Starts a new or existing session.
      *
-     * @return bool
+     * @param array $options
      *
+     * @return bool
      */
-    public function start()
+    public function start(array $options = null)
     {
-        $result = session_start();
+        $sessionStatus = session_status();
+
+        if ($sessionStatus === PHP_SESSION_DISABLED) {
+            throw new \RuntimeException('PHP sessions are disabled');
+        }
+
+        if ($sessionStatus === PHP_SESSION_ACTIVE) {
+            throw new \RuntimeException('session has already been started');
+        }
+
+        if ($this->handler) {
+            session_set_save_handler($this->handler, true);
+        }
+
+        session_set_cookie_params(
+            $this->cookieParams['lifetime'],
+            $this->cookieParams['path'],
+            $this->cookieParams['domain'],
+            $this->cookieParams['secure'],
+            $this->cookieParams['httponly']
+        );
+
+        if ($options === null) {
+            $options = [];
+        }
+
+        if (!isset($options['session.serialize_handler'])) {
+            $serializeHandler = ini_get('session.serialize_handler');
+            if ($serializeHandler === 'php' || $serializeHandler === 'php_binary') {
+                $options['session.serialize_handler'] = 'php_serialize';
+            }
+        }
+
+        $result = session_start($options);
+
         if ($result) {
             $this->moveFlash();
         }
@@ -230,27 +252,6 @@ class Session
 
     /**
      *
-     * Resumes a session, but does not start a new one if there is no
-     * existing one.
-     *
-     * @return bool
-     *
-     */
-    public function resume()
-    {
-        if ($this->isStarted()) {
-            return true;
-        }
-
-        if ($this->isResumable()) {
-            return $this->start();
-        }
-
-        return false;
-    }
-
-    /**
-     *
      * Clears all session variables across all segments.
      *
      * @return null
@@ -271,33 +272,6 @@ class Session
     public function commit()
     {
         return session_write_close();
-    }
-
-    /**
-     *
-     * Destroys the session entirely.
-     *
-     * @return bool
-     *
-     * @see http://php.net/manual/en/function.session-destroy.php
-     *
-     */
-    public function destroy()
-    {
-        if (!$this->isStarted()) {
-            $this->start();
-        }
-
-        $name = $this->getName();
-        $params = $this->getCookieParams();
-        $this->clear();
-
-        $destroyed = session_destroy();
-        if ($destroyed) {
-            call_user_func($this->deleteCookie, $name, $params);
-        }
-
-        return $destroyed;
     }
 
     /**
@@ -381,43 +355,6 @@ class Session
     public function getCacheLimiter()
     {
         return session_cache_limiter();
-    }
-
-    /**
-     *
-     * Sets the session cookie params.  Param array keys are:
-     *
-     * - `lifetime` : Lifetime of the session cookie, defined in seconds.
-     *
-     * - `path` : Path on the domain where the cookie will work.
-     *   Use a single slash ('/') for all paths on the domain.
-     *
-     * - `domain` : Cookie domain, for example 'www.php.net'.
-     *   To make cookies visible on all subdomains then the domain must be
-     *   prefixed with a dot like '.php.net'.
-     *
-     * - `secure` : If TRUE cookie will only be sent over secure connections.
-     *
-     * - `httponly` : If set to TRUE then PHP will attempt to send the httponly
-     *   flag when setting the session cookie.
-     *
-     * @param array $params The array of session cookie param keys and values.
-     *
-     * @return null
-     *
-     * @see session_set_cookieParams()
-     *
-     */
-    public function setCookieParams(array $params)
-    {
-        $this->cookieParams = array_merge($this->cookieParams, $params);
-        session_set_cookie_params(
-            $this->cookieParams['lifetime'],
-            $this->cookieParams['path'],
-            $this->cookieParams['domain'],
-            $this->cookieParams['secure'],
-            $this->cookieParams['httponly']
-        );
     }
 
     /**
@@ -518,5 +455,52 @@ class Session
     public function getSavePath()
     {
         return session_save_path();
+    }
+
+    public function destroy()
+    {
+        if (!$this->isStarted()) {
+            $this->start();
+        }
+
+        $name = $this->getName();
+        $this->clear();
+
+        $destroyed = session_destroy();
+
+        if ($destroyed) {
+            if ($this->response) {
+                $this->response->cookie->delete($name);
+            } else {
+                setcookie($name, '', 0,
+                    $this->cookieParams['path'],
+                    $this->cookieParams['domain'],
+                    $this->cookieParams['secure'],
+                    $this->cookieParams['httponly']
+                );
+            }
+        }
+
+        return $destroyed;
+    }
+
+    public function get($key)
+    {
+        return $_SESSION[$key] ?? null;
+    }
+
+    public function has($key)
+    {
+        return isset($_SESSION[$key]);
+    }
+
+    public function set($key, $value)
+    {
+        $_SESSION[$key] = $value;
+    }
+
+    public function delete($key)
+    {
+        unset($_SESSION[$key]);
     }
 }

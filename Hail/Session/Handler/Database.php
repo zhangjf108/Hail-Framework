@@ -1,5 +1,5 @@
 <?php
-namespace Hail\Session;
+namespace Hail\Session\Handler;
 
 use Hail\Database\Database;
 
@@ -9,7 +9,7 @@ use Hail\Database\Database;
  * @package Hail\Session
  * @author Hao Feng <flyinghail@msn.com>
  */
-class DBHandler extends BaseHandler
+class Database extends BaseHandler
 {
 	/**
 	 * @var Database

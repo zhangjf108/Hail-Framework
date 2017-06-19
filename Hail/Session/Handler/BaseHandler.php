@@ -1,12 +1,6 @@
 <?php
-/**
- * Created by IntelliJ IDEA.
- * User: FlyingHail
- * Date: 2016/2/15 0015
- * Time: 18:06
- */
 
-namespace Hail\Session;
+namespace Hail\Session\Handler;
 
 /**
  * Class BaseHandler

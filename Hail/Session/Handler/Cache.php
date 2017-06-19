@@ -1,24 +1,25 @@
 <?php
-namespace Hail\Session;
 
-use Psr\SimpleCache\CacheInterface;
+namespace Hail\Session\Handler;
+
+use Psr\Cache\CacheItemPoolInterface;
 
 /**
- * Class CacheHandler.
+ * Class CachePoolHandler.
  *
  * @author Hao Feng <flyinghail@msn.com>
  */
-class SimpleCacheHandler extends BaseHandler
+class Cache extends BaseHandler
 {
 	/**
-	 * @var CacheInterface
+	 * @type CacheItemPoolInterface Cache driver.
 	 */
 	private $cache;
 
-	public function __construct(CacheInterface $cache, array $settings)
+	public function __construct(CacheItemPoolInterface $cache, array $settings)
 	{
 		$settings += [
-			'prefix' => 'PSR16Ses',
+			'prefix' => 'PSR6Ses',
 		];
 
 		if (!isset($settings['lifetime']) || $settings['lifetime'] === 0) {
@@ -53,7 +54,15 @@ class SimpleCacheHandler extends BaseHandler
 	 */
 	public function read($id)
 	{
-		return $this->cache->get($this->key($id), '');
+		$item = $this->cache->getItem(
+			$this->key($id)
+		);
+
+		if ($item->isHit()) {
+			return $item->get();
+		}
+
+		return '';
 	}
 
 	/**
@@ -61,7 +70,14 @@ class SimpleCacheHandler extends BaseHandler
 	 */
 	public function write($id, $data)
 	{
-		return $this->cache->set($this->key($id), $data, $this->settings['lifetime']);
+		$item = $this->cache->getItem(
+			$this->key($id)
+		);
+
+		$item->set($data)
+			->expiresAfter($this->settings['lifetime']);
+
+		return $this->cache->save($item);
 	}
 
 	/**
@@ -69,7 +85,7 @@ class SimpleCacheHandler extends BaseHandler
 	 */
 	public function destroy($id)
 	{
-		return $this->cache->delete(
+		return $this->cache->deleteItem(
 			$this->key($id)
 		);
 	}

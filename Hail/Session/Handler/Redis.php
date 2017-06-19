@@ -1,5 +1,5 @@
 <?php
-namespace Hail\Session;
+namespace Hail\Session\Handler;
 
 use Hail\Redis\Exception\RedisException;
 
@@ -8,7 +8,7 @@ use Hail\Redis\Exception\RedisException;
  *
  * @package Hail\Session
  */
-class RedisHandler extends BaseHandler
+class Redis extends BaseHandler
 {
 	/**
 	 * @var \Hail\Redis\Client\AbstractClient

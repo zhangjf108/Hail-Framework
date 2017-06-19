@@ -36,10 +36,6 @@ router:
   class|to: Hail\Router
   arguments: [CONFIG.route]
 
-session:
-  class|to: Hail\Session
-  arguments: [CONFIG.session, CONFIG.cookie]
-
 storage: Hail\Factory\Storage::mount
 
 template:
@@ -79,6 +75,12 @@ lib:
 model:
   class: Hail\Util\ObjectFactory
   arguments: [App\Model, "@container"]
+
+session:
+  class|to: Hail\Session\Session
+  arguments: [CONFIG.cookie]
+  calls:
+    setHandler: [CONFIG.session]
 
 # Middleware
 Hail\Http\Middleware\ErrorHandler: []
