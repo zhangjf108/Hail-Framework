@@ -101,6 +101,8 @@ Hail\Http\Middleware\ContentLanguage:
   arguments: [CONFIG.env.languages]
 
 # Hail Framework middleware
+Hail\Http\Middleware\Session:
+  arguments: ["@session"]
 Hail\Http\Middleware\I18n:
   arguments: ["@container"]
 Hail\Http\Middleware\Route:
