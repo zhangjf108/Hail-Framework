@@ -78,7 +78,7 @@ model:
 
 session:
   class|to: Hail\Session\Session
-  arguments: [CONFIG.cookie]
+  arguments: [CONFIG.cookie, "@request", "@response"]
   calls:
     setHandler: [CONFIG.session]
 

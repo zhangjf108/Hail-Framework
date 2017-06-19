@@ -6,6 +6,7 @@
  * @license http://opensource.org/licenses/bsd-license.php BSD
  *
  */
+
 namespace Hail\Session;
 
 /**
@@ -41,7 +42,7 @@ class Segment
      *
      * @param Session $session The session manager.
      *
-     * @param string $name The segment name.
+     * @param string  $name    The segment name.
      *
      */
     public function __construct(Session $session, $name)
@@ -56,7 +57,7 @@ class Segment
      *
      * @param string $key The key in the segment.
      *
-     * @param mixed $alt An alternative value to return if the key is not set.
+     * @param mixed  $alt An alternative value to return if the key is not set.
      *
      * @return mixed
      *
@@ -64,9 +65,8 @@ class Segment
     public function get($key, $alt = null)
     {
         $this->resumeSession();
-        return isset($_SESSION[$this->name][$key])
-             ? $_SESSION[$this->name][$key]
-             : $alt;
+
+        return $_SESSION[$this->name][$key] ?? $alt;
     }
 
     /**
@@ -79,9 +79,8 @@ class Segment
     public function getSegment()
     {
         $this->resumeSession();
-        return isset($_SESSION[$this->name])
-            ? $_SESSION[$this->name]
-            : null;
+
+        return $_SESSION[$this->name] ?? null;
     }
 
     /**
@@ -90,7 +89,7 @@ class Segment
      *
      * @param string $key The key to set.
      *
-     * @param mixed $val The value to set it to.
+     * @param mixed  $val The value to set it to.
      *
      */
     public function set($key, $val)
@@ -122,7 +121,7 @@ class Segment
     public function clear()
     {
         if ($this->resumeSession()) {
-            $_SESSION[$this->name] = array();
+            $_SESSION[$this->name] = [];
         }
     }
 
@@ -132,10 +131,11 @@ class Segment
      *
      * @param null $key
      */
-    public function remove($key = null) {
+    public function remove($key = null)
+    {
         if ($this->resumeSession()) {
-            if($key){
-                if(isset($_SESSION[$this->name]) && array_key_exists($key, $_SESSION[$this->name])){
+            if ($key) {
+                if (isset($_SESSION[$this->name]) && array_key_exists($key, $_SESSION[$this->name])) {
                     unset($_SESSION[$this->name][$key]);
                 }
             } else {
@@ -150,7 +150,7 @@ class Segment
      *
      * @param string $key The key for the flash value.
      *
-     * @param mixed $val The flash value itself.
+     * @param mixed  $val The flash value itself.
      *
      */
     public function setFlash($key, $val)
@@ -178,7 +178,7 @@ class Segment
      *
      * @param string $key The key for the flash value.
      *
-     * @param mixed $alt An alternative value to return if the key is not set.
+     * @param mixed  $alt An alternative value to return if the key is not set.
      *
      * @return mixed The flash value itself.
      *
@@ -186,9 +186,10 @@ class Segment
     public function getFlash($key, $alt = null)
     {
         $this->resumeSession();
+
         return isset($_SESSION[Session::FLASH_NOW][$this->name][$key])
-             ? $_SESSION[Session::FLASH_NOW][$this->name][$key]
-             : $alt;
+            ? $_SESSION[Session::FLASH_NOW][$this->name][$key]
+            : $alt;
     }
 
     /**
@@ -200,12 +201,13 @@ class Segment
      * @return mixed The flash values themselves.
      *
      */
-    public function getAllCurrentFlash($alt = array())
+    public function getAllCurrentFlash($alt = [])
     {
         $this->resumeSession();
+
         return isset($_SESSION[Session::FLASH_NOW][$this->name])
-             ? $_SESSION[Session::FLASH_NOW][$this->name]
-             : $alt;
+            ? $_SESSION[Session::FLASH_NOW][$this->name]
+            : $alt;
     }
 
     /**
@@ -218,7 +220,7 @@ class Segment
     public function clearFlash()
     {
         if ($this->resumeSession()) {
-            $_SESSION[Session::FLASH_NEXT][$this->name] = array();
+            $_SESSION[Session::FLASH_NEXT][$this->name] = [];
         }
     }
 
@@ -228,7 +230,7 @@ class Segment
      *
      * @param string $key The key for the flash value.
      *
-     * @param mixed $alt An alternative value to return if the key is not set.
+     * @param mixed  $alt An alternative value to return if the key is not set.
      *
      * @return mixed The flash value itself.
      *
@@ -236,9 +238,10 @@ class Segment
     public function getFlashNext($key, $alt = null)
     {
         $this->resumeSession();
+
         return isset($_SESSION[Session::FLASH_NEXT][$this->name][$key])
-             ? $_SESSION[Session::FLASH_NEXT][$this->name][$key]
-             : $alt;
+            ? $_SESSION[Session::FLASH_NEXT][$this->name][$key]
+            : $alt;
     }
 
     /**
@@ -250,12 +253,13 @@ class Segment
      * @return mixed The flash values themselves.
      *
      */
-    public function getAllFlashNext($alt = array())
+    public function getAllFlashNext($alt = [])
     {
         $this->resumeSession();
+
         return isset($_SESSION[Session::FLASH_NEXT][$this->name])
-             ? $_SESSION[Session::FLASH_NEXT][$this->name]
-             : $alt;
+            ? $_SESSION[Session::FLASH_NEXT][$this->name]
+            : $alt;
     }
 
     /**
@@ -264,7 +268,7 @@ class Segment
      *
      * @param string $key The key for the flash value.
      *
-     * @param mixed $val The flash value itself.
+     * @param mixed  $val The flash value itself.
      *
      */
     public function setFlashNow($key, $val)
@@ -298,8 +302,8 @@ class Segment
     public function clearFlashNow()
     {
         if ($this->resumeSession()) {
-            $_SESSION[Session::FLASH_NOW][$this->name] = array();
-            $_SESSION[Session::FLASH_NEXT][$this->name] = array();
+            $_SESSION[Session::FLASH_NOW][$this->name] = [];
+            $_SESSION[Session::FLASH_NEXT][$this->name] = [];
         }
     }
 
@@ -333,6 +337,7 @@ class Segment
     {
         if ($this->session->isStarted() || $this->session->resume()) {
             $this->load();
+
             return true;
         }
 
@@ -348,16 +353,16 @@ class Segment
      */
     protected function load()
     {
-        if (! isset($_SESSION[$this->name])) {
-            $_SESSION[$this->name] = array();
+        if (!isset($_SESSION[$this->name])) {
+            $_SESSION[$this->name] = [];
         }
 
-        if (! isset($_SESSION[Session::FLASH_NOW][$this->name])) {
-            $_SESSION[Session::FLASH_NOW][$this->name] = array();
+        if (!isset($_SESSION[Session::FLASH_NOW][$this->name])) {
+            $_SESSION[Session::FLASH_NOW][$this->name] = [];
         }
 
-        if (! isset($_SESSION[Session::FLASH_NEXT][$this->name])) {
-            $_SESSION[Session::FLASH_NEXT][$this->name] = array();
+        if (!isset($_SESSION[Session::FLASH_NEXT][$this->name])) {
+            $_SESSION[Session::FLASH_NEXT][$this->name] = [];
         }
     }
 
@@ -370,7 +375,7 @@ class Segment
      */
     protected function resumeOrStartSession()
     {
-        if (! $this->resumeSession()) {
+        if (!$this->resumeSession()) {
             $this->session->start();
             $this->load();
         }

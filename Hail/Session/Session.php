@@ -14,6 +14,7 @@ use Hail\Factory\{
     Redis,
     Database
 };
+use Hail\Http\Request;
 use Hail\Http\Response;
 use Hail\Util\ArrayTrait;
 
@@ -82,6 +83,11 @@ class Session
     private $handler;
 
     /**
+     * @var Request
+     */
+    private $request;
+
+    /**
      * @var Response
      */
     private $response;
@@ -91,10 +97,12 @@ class Session
      * Constructor
      *
      * @param array    $cookieParams
+     * @param Request  $request
      * @param Response $response
      */
-    public function __construct(array $cookieParams = [], Response $response = null)
+    public function __construct(array $cookieParams = [], Request $request = null, Response $response = null)
     {
+        $this->request = $request;
         $this->response = $response;
 
         $this->cookieParams = session_get_cookie_params();
@@ -290,6 +298,46 @@ class Session
         }
 
         return $this->csrfToken;
+    }
+
+    /**
+     *
+     * Is a session available to be resumed?
+     *
+     * @return bool
+     *
+     */
+    public function isResumable(): bool
+    {
+        $name = $this->getName();
+
+        if ($this->request) {
+            return $this->request->cookie($name) !== null;
+        }
+
+        return isset($_COOKIE[$name]);
+    }
+
+
+    /**
+     *
+     * Resumes a session, but does not start a new one if there is no
+     * existing one.
+     *
+     * @return bool
+     *
+     */
+    public function resume(): bool
+    {
+        if ($this->isStarted()) {
+            return true;
+        }
+
+        if ($this->isResumable()) {
+            return $this->start();
+        }
+
+        return false;
     }
 
     // =======================================================================
