@@ -2,7 +2,6 @@
 
 namespace Hail\Http;
 
-use Hail\Http\Event\DispatcherEvent;
 use Psr\Container\ContainerInterface;
 use Psr\Http\{
     ServerMiddleware\DelegateInterface,
@@ -12,9 +11,9 @@ use Psr\Http\{
 };
 
 /**
- * PSR-7 / PSR-15 middleware dispatcher
+ * PSR-15 middleware dispatcher
  */
-class Dispatcher implements MiddlewareInterface
+class Dispatcher implements DelegateInterface
 {
     /**
      * @var ContainerInterface
@@ -29,7 +28,7 @@ class Dispatcher implements MiddlewareInterface
     /**
      * @var int
      */
-    private $index;
+    private $index = 0;
 
     /**
      * @param (callable|MiddlewareInterface|mixed)[] $middleware middleware stack (with at least one middleware component)
@@ -49,18 +48,6 @@ class Dispatcher implements MiddlewareInterface
     }
 
     /**
-     * Return the next available middleware frame in the queue.
-     *
-     * @return MiddlewareInterface|false
-     */
-    public function next(): ?MiddlewareInterface
-    {
-        ++$this->index;
-
-        return $this->get();
-    }
-
-    /**
      * Dispatch the request, return a response.
      *
      * @param ServerRequestInterface $request
@@ -70,38 +57,43 @@ class Dispatcher implements MiddlewareInterface
      */
     public function dispatch(ServerRequestInterface $request): ResponseInterface
     {
-        $this->index = 0;
-
-        return $this->get()->process($request, new Delegate($this));
+        return $this->get()->process($request, $this);
     }
 
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      * @throws \LogicException
      */
-    public function process(ServerRequestInterface $request, DelegateInterface $delegate): ResponseInterface
+    public function process(ServerRequestInterface $request): ResponseInterface
     {
-        $this->index = 0;
+        $middleware = $this->get();
+        if ($middleware === null) {
+            throw new \LogicException('Middleware queue exhausted, with no response returned.');
+        }
 
-        return $this->get()->process($request, new Delegate($this, $delegate));
+        return $middleware->process($request, $this);
     }
 
     /**
      * Return the next available middleware frame in the middleware.
      *
-     * @return MiddlewareInterface
+     * @return MiddlewareInterface|null
      * @throws \LogicException
      */
-    public function get(): ?MiddlewareInterface
+    protected function get(): ?MiddlewareInterface
     {
-        if (!isset($this->middleware[$this->index])) {
+        $index = $this->index++;
+
+        if (!isset($this->middleware[$index])) {
             return null;
         }
 
-        $middleware = $this->middleware[$this->index];
+        $middleware = $this->middleware[$index];
 
-        if (is_string($middleware)) {
+        if (is_callable($middleware)) {
+            $middleware = new Middleware\CallableWrapper($middleware);
+        } elseif (is_string($middleware)) {
             if ($this->container === null) {
                 throw new \LogicException("No valid middleware provided: $middleware");
             }
@@ -109,9 +101,7 @@ class Dispatcher implements MiddlewareInterface
             $middleware = $this->container->get($middleware);
         }
 
-        if (is_callable($middleware)) {
-            $middleware = new Middleware\CallableWrapper($middleware);
-        } elseif (!$middleware instanceof MiddlewareInterface) {
+        if (!$middleware instanceof MiddlewareInterface) {
             throw new \LogicException('The middleware must be an instance of MiddlewareInterface');
         }
 
